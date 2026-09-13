@@ -133,7 +133,7 @@ export default function VidyaaraaAIPage() {
                 <span className="badge badge-cyan text-[10px]">Academic Copilot</span>
               </div>
               <p className="text-xs text-[var(--text-2)]">
-                VTU & Engineering Study Assistant · Groq + Gemini Powered
+                VTU & Engineering Study Assistant · Meta AI Powered
               </p>
             </div>
           </div>

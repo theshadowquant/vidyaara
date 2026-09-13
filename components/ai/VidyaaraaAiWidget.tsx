@@ -435,7 +435,7 @@ export function VidyaaraaAiWidget() {
             </div>
 
             <span className="text-[10px] text-[var(--text-3)] font-mono">
-              Groq + Gemini
+              Meta AI Powered
             </span>
           </div>
 
