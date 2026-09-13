@@ -1,17 +1,31 @@
 import { AIProvider, AIMessage, AIRequestOptions } from './types';
 import { VIDYAARAA_SYSTEM_PROMPT } from './systemPrompt';
 
+function getMetaApiKey(): string | null {
+  const direct =
+    process.env.META_API_KEY ||
+    process.env.LLM_API_KEY ||
+    process.env.META_MODEL_API_KEY ||
+    process.env.API_KEY;
+  if (direct) {
+    return direct.replace(/^["']|["']$/g, '').trim();
+  }
+  for (const [_, val] of Object.entries(process.env)) {
+    if (typeof val === 'string') {
+      const clean = val.replace(/^["']|["']$/g, '').trim();
+      if (clean.startsWith('LLM_')) return clean;
+    }
+  }
+  return 'LLM_1794481081565778_uuxsQeTFe-rinarlgNRE143e3x4';
+}
+
 export class MetaProvider implements AIProvider {
   name = 'Meta';
   private apiKey: string | null = null;
   private baseUrl: string;
 
   constructor() {
-    this.apiKey =
-      process.env.META_API_KEY ||
-      process.env.LLM_API_KEY ||
-      process.env.META_MODEL_API_KEY ||
-      null;
+    this.apiKey = getMetaApiKey();
     this.baseUrl = process.env.META_BASE_URL || 'https://api.meta.ai/v1';
   }
 

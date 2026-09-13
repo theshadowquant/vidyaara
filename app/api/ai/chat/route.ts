@@ -3,6 +3,7 @@ import { streamChatWithFallback } from '@/lib/ai/factory';
 import { AIMessage } from '@/lib/ai/types';
 
 export const runtime = 'nodejs';
+export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
   try {
