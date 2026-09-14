@@ -6,8 +6,6 @@ import { subjects } from './universities';
 const toolResults: SearchResult[] = [
   { id: 'tool-sgpa', title: 'SGPA Calculator', type: 'tool', href: 'https://biet-sgpa-auto.vercel.app/', meta: 'Calculate semester GPA' },
   { id: 'tool-cgpa', title: 'CGPA Calculator', type: 'tool', href: 'https://biet-sgpa-auto.vercel.app/', meta: 'Calculate cumulative GPA' },
-  { id: 'tool-pct', title: 'Percentage Calculator', type: 'tool', href: 'https://biet-sgpa-auto.vercel.app/', meta: 'Convert CGPA to percentage' },
-  { id: 'tool-req', title: 'Required SGPA Calculator', type: 'tool', href: 'https://biet-sgpa-auto.vercel.app/', meta: 'Find SGPA needed to reach target CGPA' },
   { id: 'tool-planner', title: 'Study Planner', type: 'tool', href: '/planner', meta: 'Generate a personalised study schedule' },
   { id: 'tool-quiz', title: 'AI Quiz', type: 'tool', href: '/quiz', meta: 'Test your knowledge with subject quizzes' },
 ];

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Calculator, Percent, FileQuestion, BookOpen, Calendar, Sparkles, Target, ArrowRight } from 'lucide-react';
+import { Calculator, FileQuestion, BookOpen, Calendar, Sparkles, ArrowRight } from 'lucide-react';
 
 const tools = [
   {
@@ -17,20 +17,6 @@ const tools = [
     icon: <Calculator size={20} className="text-[#7C3AED]" />,
     href: 'https://biet-sgpa-auto.vercel.app/',
     cta: 'Calculate CGPA',
-  },
-  {
-    title: 'Percentage Calculator',
-    description: 'Convert your CGPA to percentage using the official VTU conversion formula.',
-    icon: <Percent size={20} className="text-[var(--accent)]" />,
-    href: 'https://biet-sgpa-auto.vercel.app/',
-    cta: 'Convert Percentage',
-  },
-  {
-    title: 'Required SGPA',
-    description: 'Find out the exact SGPA needed in upcoming semesters to hit your target CGPA.',
-    icon: <Target size={20} className="text-amber-500" />,
-    href: 'https://biet-sgpa-auto.vercel.app/',
-    cta: 'Check Target',
   },
   {
     title: 'PYQ Finder',
@@ -79,7 +65,7 @@ export function QuickTools() {
         </div>
 
         {/* Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 text-left">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 text-left">
           {tools.map((t) => (
             <div
               key={t.title}
