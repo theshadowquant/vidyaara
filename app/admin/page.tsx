@@ -41,6 +41,17 @@ import {
   AdminNoteRequest,
   AdminFeedback,
 } from '@/lib/admin-storage';
+import {
+  fetchAllResources,
+  addResource,
+  removeResource,
+  fetchAllRequests,
+  updateRequestStatus,
+  removeNoteRequest,
+  fetchAllFeedback,
+  removeFeedback,
+  isSupabaseConfigured,
+} from '@/lib/supabase';
 import { Resource, ResourceType } from '@/types';
 
 type AdminTab = 'overview' | 'resources' | 'requests' | 'feedback' | 'ai';
@@ -99,10 +110,15 @@ export default function AdminPage() {
     loadAllData();
   }, []);
 
-  const loadAllData = () => {
-    setResourcesList(getStoredResources());
-    setRequestsList(getStoredRequests());
-    setFeedbackList(getStoredFeedback());
+  const loadAllData = async () => {
+    const [res, reqs, fbs] = await Promise.all([
+      fetchAllResources(),
+      fetchAllRequests(),
+      fetchAllFeedback(),
+    ]);
+    setResourcesList(res);
+    setRequestsList(reqs);
+    setFeedbackList(fbs);
   };
 
   const handleLogin = (e: React.FormEvent) => {
@@ -124,12 +140,12 @@ export default function AdminPage() {
   };
 
   // Add Resource
-  const handleAddResource = (e: React.FormEvent) => {
+  const handleAddResource = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || !newSubject.trim()) return;
 
     const resource: Resource = {
-      id: 'custom-' + Date.now(),
+      id: 'res-' + Date.now(),
       subjectId: `${newBranch}-s${newSem}-${newSubject.toLowerCase().replace(/\s+/g, '-')}`,
       subjectName: newSubject.trim(),
       branchId: newBranch,
@@ -143,8 +159,8 @@ export default function AdminPage() {
       uploadedAt: new Date().toISOString().split('T')[0],
     };
 
-    saveCustomResource(resource);
-    setResourcesList(getStoredResources());
+    await addResource(resource);
+    await loadAllData();
     setShowAddResource(false);
     // Reset form
     setNewTitle('');
@@ -153,27 +169,28 @@ export default function AdminPage() {
     setNewDesc('');
   };
 
-  const handleDeleteResource = (id: string) => {
+  const handleDeleteResource = async (id: string) => {
     if (confirm('Delete this resource?')) {
-      deleteCustomResource(id);
+      await removeResource(id);
       setResourcesList((prev) => prev.filter((r) => r.id !== id));
     }
   };
 
   // Requests Status Change
-  const handleStatusChange = (id: string, status: AdminNoteRequest['status']) => {
-    updateNoteRequestStatus(id, status);
-    setRequestsList(getStoredRequests());
+  const handleStatusChange = async (id: string, status: AdminNoteRequest['status']) => {
+    await updateRequestStatus(id, status);
+    const updated = await fetchAllRequests();
+    setRequestsList(updated);
   };
 
-  const handleDeleteRequest = (id: string) => {
-    deleteNoteRequest(id);
+  const handleDeleteRequest = async (id: string) => {
+    await removeNoteRequest(id);
     setRequestsList((prev) => prev.filter((r) => r.id !== id));
   };
 
   // Feedback Delete
-  const handleDeleteFeedback = (id: string) => {
-    deleteFeedback(id);
+  const handleDeleteFeedback = async (id: string) => {
+    await removeFeedback(id);
     setFeedbackList((prev) => prev.filter((f) => f.id !== id));
   };
 
@@ -315,6 +332,17 @@ export default function AdminPage() {
                   Vidyaaraa Admin Panel
                 </h1>
                 <span className="badge badge-cyan text-[10px]">Master Console</span>
+                {isSupabaseConfigured() ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400 bg-emerald-950/40 border border-emerald-500/30 px-2 py-0.5 rounded-full font-mono">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    Supabase Live
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--text-3)] bg-[var(--bg-overlay)] border border-[var(--bd)] px-2 py-0.5 rounded-full font-mono" title="Add NEXT_PUBLIC_SUPABASE_URL to connect cloud DB">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                    Local Mode
+                  </span>
+                )}
               </div>
               <p className="text-[11px] text-[var(--text-3)]">
                 Manage resources, requests, user feedback, and AI assistant
