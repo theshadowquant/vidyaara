@@ -1,43 +1,33 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FileQuestion, Send, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 
-interface RequestItem {
-  id: string;
-  subject: string;
-  branch: string;
-  sem: string;
-  status: 'Available' | 'Under Review' | 'In Progress';
-}
-
-const INITIAL_REQUESTS: RequestItem[] = [
-  { id: '1', subject: 'Graph Theory & Combinatorics', branch: 'CSE', sem: '4th Sem', status: 'Available' },
-  { id: '2', subject: 'Digital Signal Processing', branch: 'ECE', sem: '5th Sem', status: 'In Progress' },
-  { id: '3', subject: 'Automata Theory & Computability', branch: 'ISE', sem: '5th Sem', status: 'Under Review' },
-  { id: '4', subject: 'Fluid Mechanics Lab Manual', branch: 'ME', sem: '3rd Sem', status: 'Available' },
-];
+import { getStoredRequests, saveNoteRequest, AdminNoteRequest as RequestItem } from '@/lib/admin-storage';
 
 export function RequestNotes() {
-  const [requests, setRequests] = useState<RequestItem[]>(INITIAL_REQUESTS);
+  const [requests, setRequests] = useState<RequestItem[]>([]);
   const [subject, setSubject] = useState('');
   const [branch, setBranch] = useState('CSE');
   const [sem, setSem] = useState('4th Sem');
   const [submitted, setSubmitted] = useState(false);
 
+  useEffect(() => {
+    setRequests(getStoredRequests());
+  }, []);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!subject.trim()) return;
 
-    const newReq: RequestItem = {
-      id: Date.now().toString(),
+    const newReq = saveNoteRequest({
       subject: subject.trim(),
       branch,
       sem,
       status: 'Under Review',
-    };
+    });
 
-    setRequests([newReq, ...requests]);
+    setRequests((prev) => [newReq, ...prev]);
     setSubject('');
     setSubmitted(true);
     setTimeout(() => setSubmitted(false), 4000);
