@@ -3,7 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { FileQuestion, Send, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
 
-import { getStoredRequests, saveNoteRequest, AdminNoteRequest as RequestItem } from '@/lib/admin-storage';
+import { AdminNoteRequest as RequestItem } from '@/lib/admin-storage';
+import { fetchAllRequests, addNoteRequest } from '@/lib/supabase';
 
 export function RequestNotes() {
   const [requests, setRequests] = useState<RequestItem[]>([]);
@@ -13,14 +14,14 @@ export function RequestNotes() {
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
-    setRequests(getStoredRequests());
+    fetchAllRequests().then((data) => setRequests(data));
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!subject.trim()) return;
 
-    const newReq = saveNoteRequest({
+    const newReq = await addNoteRequest({
       subject: subject.trim(),
       branch,
       sem,

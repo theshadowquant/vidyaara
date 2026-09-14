@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { MessageSquare, Star, Send, Check } from 'lucide-react';
-import { saveFeedback } from '@/lib/admin-storage';
+import { addFeedback } from '@/lib/supabase';
 
 export function FeedbackSection() {
   const [rating, setRating] = useState<number>(5);
@@ -10,11 +10,11 @@ export function FeedbackSection() {
   const [category, setCategory] = useState('Feature Suggestion');
   const [submitted, setSubmitted] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!comment.trim()) return;
 
-    saveFeedback(rating, comment.trim(), category);
+    await addFeedback(rating, comment.trim(), category);
     setSubmitted(true);
     setComment('');
     setTimeout(() => setSubmitted(false), 5000);

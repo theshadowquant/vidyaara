@@ -1,4 +1,5 @@
 import { Resource } from '@/types';
+import { resources as defaultResources } from '@/data/resources';
 import {
   AdminNoteRequest,
   AdminFeedback,
@@ -68,8 +69,8 @@ export async function fetchAllResources(): Promise<Resource[]> {
     const data = await supabaseFetch<Resource[]>('resources', {
       query: 'select=*&order=uploadedAt.desc',
     });
-    if (data && data.length > 0) {
-      return data;
+    if (data) {
+      return [...data, ...defaultResources];
     }
   }
   return getStoredResources();
