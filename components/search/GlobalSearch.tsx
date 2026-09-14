@@ -41,7 +41,11 @@ export function GlobalSearch({ onClose }: { onClose: () => void }) {
 
   const navigate = (href: string) => {
     onClose();
-    router.push(href);
+    if (href.startsWith('http')) {
+      window.open(href, '_blank', 'noopener,noreferrer');
+    } else {
+      router.push(href);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

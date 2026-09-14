@@ -9,7 +9,7 @@ import { GlobalSearch } from '@/components/search/GlobalSearch';
 
 const navLinks = [
   { href: '/resources', label: 'Resources' },
-  { href: '/calculators', label: 'Calculators' },
+  { href: 'https://biet-sgpa-auto.vercel.app/', label: 'Calculators' },
   { href: '/pyqs', label: 'PYQs' },
   { href: '/planner', label: 'Planner' },
   { href: '/placement', label: 'Placement' },
@@ -107,11 +107,14 @@ export function Navbar() {
             className="hidden-mobile"
           >
             {navLinks.map((link) => {
-              const active = pathname.startsWith(link.href);
+              const isExternal = link.href.startsWith('http');
+              const active = !isExternal && pathname.startsWith(link.href);
               return (
                 <Link
                   key={link.href}
                   href={link.href}
+                  target={isExternal ? '_blank' : undefined}
+                  rel={isExternal ? 'noopener noreferrer' : undefined}
                   style={{
                     padding: '0.375rem 0.75rem',
                     borderRadius: '0.5rem',
@@ -198,11 +201,15 @@ export function Navbar() {
           >
             <nav role="navigation" aria-label="Mobile navigation">
               {navLinks.map((link) => {
-                const active = pathname.startsWith(link.href);
+                const isExternal = link.href.startsWith('http');
+                const active = !isExternal && pathname.startsWith(link.href);
                 return (
                   <Link
                     key={link.href}
                     href={link.href}
+                    target={isExternal ? '_blank' : undefined}
+                    rel={isExternal ? 'noopener noreferrer' : undefined}
+                    onClick={() => setMobileOpen(false)}
                     style={{
                       display: 'block',
                       padding: '0.625rem 0.75rem',

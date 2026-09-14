@@ -8,28 +8,28 @@ const tools = [
     title: 'SGPA Calculator',
     description: 'Calculate your semester GPA using your exact VTU branch grading scheme.',
     icon: <Calculator size={20} className="text-[var(--accent)]" />,
-    href: '/calculators#sgpa',
+    href: 'https://biet-sgpa-auto.vercel.app/',
     cta: 'Calculate SGPA',
   },
   {
     title: 'CGPA Calculator',
     description: 'Combine your semester GPAs to compute your cumulative academic progress.',
     icon: <Calculator size={20} className="text-[#7C3AED]" />,
-    href: '/calculators#cgpa',
+    href: 'https://biet-sgpa-auto.vercel.app/',
     cta: 'Calculate CGPA',
   },
   {
     title: 'Percentage Calculator',
     description: 'Convert your CGPA to percentage using the official VTU conversion formula.',
     icon: <Percent size={20} className="text-[var(--accent)]" />,
-    href: '/calculators#percentage',
+    href: 'https://biet-sgpa-auto.vercel.app/',
     cta: 'Convert Percentage',
   },
   {
     title: 'Required SGPA',
     description: 'Find out the exact SGPA needed in upcoming semesters to hit your target CGPA.',
     icon: <Target size={20} className="text-amber-500" />,
-    href: '/calculators#required',
+    href: 'https://biet-sgpa-auto.vercel.app/',
     cta: 'Check Target',
   },
   {
@@ -103,6 +103,8 @@ export function QuickTools() {
               <div className="pt-4 border-t border-[var(--bd-subtle)] mt-4">
                 <Link
                   href={t.href}
+                  target={t.href.startsWith('http') ? '_blank' : undefined}
+                  rel={t.href.startsWith('http') ? 'noopener noreferrer' : undefined}
                   className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--text-1)] group-hover:text-[var(--accent)] transition-colors"
                 >
                   <span>{t.cta}</span>

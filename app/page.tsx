@@ -51,7 +51,12 @@ export default function Home() {
               <span>Explore Resources</span>
               <ChevronRight size={18} />
             </Link>
-            <Link href="/calculators" className="btn btn-secondary btn-lg">
+            <Link
+              href="https://biet-sgpa-auto.vercel.app/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-secondary btn-lg"
+            >
               Try Calculators
             </Link>
           </div>

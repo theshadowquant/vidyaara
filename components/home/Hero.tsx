@@ -29,7 +29,7 @@ export function Hero() {
             <span>Explore Vidyaaraa</span>
             <ChevronRight size={18} />
           </Link>
-          <Link href="/calculators" className="btn btn-secondary btn-lg flex items-center justify-center gap-2">
+          <Link href="https://biet-sgpa-auto.vercel.app/" target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-lg flex items-center justify-center gap-2">
             <Calculator size={18} />
             <span>Calculate CGPA</span>
           </Link>

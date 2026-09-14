@@ -5,7 +5,7 @@ import { GraduationCap, Globe, MessageSquare, Briefcase } from 'lucide-react';
 
 const footerLinks = [
   { label: 'Resources', href: '/resources' },
-  { label: 'Calculators', href: '/calculators' },
+  { label: 'Calculators', href: 'https://biet-sgpa-auto.vercel.app/' },
   { label: 'PYQs', href: '/pyqs' },
   { label: 'Planner', href: '/planner' },
   { label: 'Placement', href: '/placement' },
@@ -110,23 +110,28 @@ export function Footer() {
               Platform
             </p>
             <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {footerLinks.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    style={{
-                      fontSize: '0.875rem',
-                      color: 'var(--text-3)',
-                      textDecoration: 'none',
-                      transition: 'color 0.15s ease',
-                    }}
-                    onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent)')}
-                    onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text-3)')}
-                  >
-                    {link.label}
-                  </Link>
-                </li>
-              ))}
+              {footerLinks.map((link) => {
+                const isExternal = link.href.startsWith('http');
+                return (
+                  <li key={link.href}>
+                    <Link
+                      href={link.href}
+                      target={isExternal ? '_blank' : undefined}
+                      rel={isExternal ? 'noopener noreferrer' : undefined}
+                      style={{
+                        fontSize: '0.875rem',
+                        color: 'var(--text-3)',
+                        textDecoration: 'none',
+                        transition: 'color 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--accent)')}
+                      onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--text-3)')}
+                    >
+                      {link.label}
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </div>
 
