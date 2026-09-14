@@ -59,13 +59,37 @@ export const INITIAL_FEEDBACKS: AdminFeedback[] = [
 ];
 
 // Resources
+export function getDeletedResourceIds(): string[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem('vidyaaraa_deleted_resource_ids');
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function markResourceDeleted(id: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const deleted = getDeletedResourceIds();
+    if (!deleted.includes(id)) {
+      deleted.push(id);
+      localStorage.setItem('vidyaaraa_deleted_resource_ids', JSON.stringify(deleted));
+    }
+  } catch (e) {
+    console.error('Failed to mark resource deleted', e);
+  }
+}
+
 export function getStoredResources(): Resource[] {
   if (typeof window === 'undefined') return defaultResources;
   try {
+    const deleted = getDeletedResourceIds();
     const raw = localStorage.getItem(STORAGE_KEYS.RESOURCES);
-    if (!raw) return defaultResources;
-    const custom = JSON.parse(raw);
-    return [...custom, ...defaultResources];
+    const custom: Resource[] = raw ? JSON.parse(raw) : [];
+    const combined = [...custom, ...defaultResources];
+    return combined.filter((r) => !deleted.includes(r.id));
   } catch {
     return defaultResources;
   }
@@ -86,11 +110,13 @@ export function saveCustomResource(resource: Resource): void {
 export function deleteCustomResource(id: string): void {
   if (typeof window === 'undefined') return;
   try {
+    markResourceDeleted(id);
     const raw = localStorage.getItem(STORAGE_KEYS.RESOURCES);
-    if (!raw) return;
-    const custom: Resource[] = JSON.parse(raw);
-    const filtered = custom.filter((r) => r.id !== id);
-    localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(filtered));
+    if (raw) {
+      const custom: Resource[] = JSON.parse(raw);
+      const filtered = custom.filter((r) => r.id !== id);
+      localStorage.setItem(STORAGE_KEYS.RESOURCES, JSON.stringify(filtered));
+    }
   } catch (e) {
     console.error('Failed to delete custom resource', e);
   }

@@ -13,6 +13,7 @@ import {
   getStoredFeedback,
   saveFeedback as localSaveFeedback,
   deleteFeedback as localDeleteFeedback,
+  getDeletedResourceIds,
 } from './admin-storage';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -65,12 +66,14 @@ async function supabaseFetch<T>(
 
 // ---------------- RESOURCES ----------------
 export async function fetchAllResources(): Promise<Resource[]> {
+  const deleted = getDeletedResourceIds();
   if (isSupabaseConfigured()) {
     const data = await supabaseFetch<Resource[]>('resources', {
       query: 'select=*&order=uploadedAt.desc',
     });
     if (data) {
-      return [...data, ...defaultResources];
+      const combined = [...data, ...defaultResources];
+      return combined.filter((r) => !deleted.includes(r.id));
     }
   }
   return getStoredResources();

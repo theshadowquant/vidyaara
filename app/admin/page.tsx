@@ -677,15 +677,13 @@ export default function AdminPage() {
                                 <ExternalLink size={14} />
                               </a>
                             )}
-                            {res.id.startsWith('custom-') && (
-                              <button
-                                onClick={() => handleDeleteResource(res.id)}
-                                className="p-1.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10"
-                                title="Delete Custom Resource"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            )}
+                            <button
+                              onClick={() => handleDeleteResource(res.id)}
+                              className="p-1.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
+                              title="Delete Resource"
+                            >
+                              <Trash2 size={14} />
+                            </button>
                           </div>
                         </td>
                       </tr>
