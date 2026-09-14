@@ -38,11 +38,26 @@ CREATE TABLE IF NOT EXISTS public.feedbacks (
   "createdAt" TEXT NOT NULL
 );
 
--- Enable public read/write access for Vidyaaraa client
+-- Enable Row Level Security
 ALTER TABLE public.resources ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.note_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.feedbacks ENABLE ROW LEVEL SECURITY;
 
+-- Clean existing policies so this script can be re-run safely anytime
+DROP POLICY IF EXISTS "Allow public read resources" ON public.resources;
+DROP POLICY IF EXISTS "Allow public insert resources" ON public.resources;
+DROP POLICY IF EXISTS "Allow public delete resources" ON public.resources;
+
+DROP POLICY IF EXISTS "Allow public read note_requests" ON public.note_requests;
+DROP POLICY IF EXISTS "Allow public insert note_requests" ON public.note_requests;
+DROP POLICY IF EXISTS "Allow public update note_requests" ON public.note_requests;
+DROP POLICY IF EXISTS "Allow public delete note_requests" ON public.note_requests;
+
+DROP POLICY IF EXISTS "Allow public read feedbacks" ON public.feedbacks;
+DROP POLICY IF EXISTS "Allow public insert feedbacks" ON public.feedbacks;
+DROP POLICY IF EXISTS "Allow public delete feedbacks" ON public.feedbacks;
+
+-- Create Policies (Public access for client read & writes)
 CREATE POLICY "Allow public read resources" ON public.resources FOR SELECT USING (true);
 CREATE POLICY "Allow public insert resources" ON public.resources FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public delete resources" ON public.resources FOR DELETE USING (true);
