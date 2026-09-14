@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Cpu, Code, Radio, Zap, Cog, Building2, ArrowRight } from 'lucide-react';
+import { Cpu, Code, Radio, Zap, Cog, Building2, ArrowRight, BookOpen } from 'lucide-react';
 
 const BRANCHES = [
   {
@@ -61,13 +61,16 @@ export function BranchSelector() {
       <div className="container-cf text-center space-y-10">
         
         {/* Title */}
-        <div className="space-y-2.5 max-w-2xl mx-auto">
-          <span className="badge badge-cyan text-[10px]">Curriculum Aligned</span>
-          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[var(--text-1)]">
-            Choose your branch
+        <div className="space-y-3 max-w-2xl mx-auto text-center">
+          <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-[rgba(0,212,170,0.1)] border border-[rgba(0,212,170,0.2)] text-[var(--accent)] text-xs font-semibold">
+            <BookOpen size={13} />
+            <span>Explore by Branch</span>
+          </div>
+          <h2 className="text-3xl sm:text-5xl font-extrabold tracking-tight text-[var(--text-1)]">
+            Choose Your <span className="text-[var(--accent)]">Branch</span>
           </h2>
-          <p className="text-sm text-[var(--text-2)] max-w-lg mx-auto">
-            Find notes, PYQs, and academic resources tailored for your engineering branch.
+          <p className="text-sm sm:text-base text-[var(--text-2)] max-w-xl mx-auto leading-relaxed">
+            Select your engineering branch to access semester-wise notes and study materials
           </p>
         </div>
 
