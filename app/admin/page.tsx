@@ -25,33 +25,20 @@ import {
   BarChart3,
   Bot,
   Zap,
+  Mail,
+  Key,
 } from 'lucide-react';
+import { branches, isBranchMatch, formatBranchName } from '@/data/universities';
+import { fetchResources, createResource, deleteResource } from '@/lib/db/resources';
 import {
-  getStoredResources,
-  saveCustomResource,
-  deleteCustomResource,
-  getStoredRequests,
+  fetchNoteRequests,
   updateNoteRequestStatus,
   deleteNoteRequest,
-  getStoredFeedback,
-  deleteFeedback,
-  isAdminAuthenticated,
-  setAdminAuthenticated,
-  DEFAULT_ADMIN_PASSCODE,
-  AdminNoteRequest,
-  AdminFeedback,
-} from '@/lib/admin-storage';
-import {
-  fetchAllResources,
-  addResource,
-  removeResource,
-  fetchAllRequests,
-  updateRequestStatus,
-  removeNoteRequest,
-  fetchAllFeedback,
-  removeFeedback,
-  isSupabaseConfigured,
-} from '@/lib/supabase';
+  NoteRequest,
+} from '@/lib/db/note-requests';
+import { fetchFeedbacks, deleteFeedback, Feedback } from '@/lib/db/feedbacks';
+import { adminSignIn, adminSignOut, isAdminAuthenticated } from '@/lib/db/admin';
+import { isSupabaseConfigured } from '@/lib/db/client';
 import { Resource, ResourceType } from '@/types';
 
 type AdminTab = 'overview' | 'resources' | 'requests' | 'feedback' | 'ai';
@@ -59,16 +46,19 @@ type AdminTab = 'overview' | 'resources' | 'requests' | 'feedback' | 'ai';
 export default function AdminPage() {
   // Auth state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [passcode, setPasscode] = useState('');
-  const [authError, setAuthError] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
 
   // Data state
   const [resourcesList, setResourcesList] = useState<Resource[]>([]);
-  const [requestsList, setRequestsList] = useState<AdminNoteRequest[]>([]);
-  const [feedbackList, setFeedbackList] = useState<AdminFeedback[]>([]);
+  const [requestsList, setRequestsList] = useState<NoteRequest[]>([]);
+  const [feedbackList, setFeedbackList] = useState<Feedback[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(false);
 
   // Resource Filter & Modal
   const [resourceSearch, setResourceSearch] = useState('');
@@ -76,14 +66,22 @@ export default function AdminPage() {
   const [resourceSem, setResourceSem] = useState('all');
   const [showAddResource, setShowAddResource] = useState(false);
 
-  // New Resource Form
+  // New Resource Form with Multi-Branch Tagging
   const [newTitle, setNewTitle] = useState('');
   const [newSubject, setNewSubject] = useState('');
-  const [newBranch, setNewBranch] = useState('cse');
+  const [selectedBranches, setSelectedBranches] = useState<string[]>([
+    'cse-allied',
+    'cse',
+    'ise',
+    'cse-aiml',
+    'cse-ds',
+    'cse-cy',
+  ]);
   const [newSem, setNewSem] = useState<number>(4);
   const [newType, setNewType] = useState<ResourceType>('notes');
   const [newUrl, setNewUrl] = useState('');
   const [newDesc, setNewDesc] = useState('');
+  const [isPublishing, setIsPublishing] = useState(false);
 
   // AI Tester
   const [aiPrompt, setAiPrompt] = useState('Explain ACID properties in DBMS briefly');
@@ -92,7 +90,8 @@ export default function AdminPage() {
   const [aiLatency, setAiLatency] = useState<number | null>(null);
 
   // Unique IDs for accessibility
-  const passcodeInputId = useId();
+  const emailInputId = useId();
+  const passwordInputId = useId();
   const resourceSearchId = useId();
   const resourceBranchId = useId();
   const resourceSemId = useId();
@@ -106,37 +105,99 @@ export default function AdminPage() {
   const aiPromptId = useId();
 
   useEffect(() => {
-    setIsAuthenticated(isAdminAuthenticated());
-    loadAllData();
+    checkAuthAndLoad();
   }, []);
 
-  const loadAllData = async () => {
-    const [res, reqs, fbs] = await Promise.all([
-      fetchAllResources(),
-      fetchAllRequests(),
-      fetchAllFeedback(),
-    ]);
-    setResourcesList(res);
-    setRequestsList(reqs);
-    setFeedbackList(fbs);
-  };
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (passcode === DEFAULT_ADMIN_PASSCODE || passcode === 'admin123') {
-      setAdminAuthenticated(true);
-      setIsAuthenticated(true);
-      setAuthError(false);
-      setPasscode('');
-      loadAllData();
-    } else {
-      setAuthError(true);
+  const checkAuthAndLoad = async () => {
+    try {
+      const isAuth = await isAdminAuthenticated();
+      setIsAuthenticated(isAuth);
+      if (isAuth || !isSupabaseConfigured()) {
+        await loadAllData();
+      }
+    } catch {
+      setIsAuthenticated(false);
     }
   };
 
-  const handleLogout = () => {
-    setAdminAuthenticated(false);
+  const loadAllData = async () => {
+    setIsLoadingData(true);
+    try {
+      const [res, reqs, fbs] = await Promise.all([
+        fetchResources(),
+        fetchNoteRequests(),
+        fetchFeedbacks(),
+      ]);
+      setResourcesList(res);
+      setRequestsList(reqs);
+      setFeedbackList(fbs);
+    } catch (err) {
+      console.error('Error loading admin data:', err);
+    } finally {
+      setIsLoadingData(false);
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoggingIn(true);
+    setAuthError(null);
+
+    try {
+      // Direct sign in with email and password
+      const res = await adminSignIn(email.trim(), password);
+      if (res.error) {
+        setAuthError(res.error.message || 'Invalid admin credentials');
+      } else {
+        setIsAuthenticated(true);
+        setAuthError(null);
+        setEmail('');
+        setPassword('');
+        await loadAllData();
+      }
+    } catch (err: any) {
+      setAuthError(err?.message || 'Login failed. Please check credentials.');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await adminSignOut();
     setIsAuthenticated(false);
+  };
+
+  // Toggle branch selection
+  const toggleBranchSelection = (branchId: string) => {
+    if (branchId === 'cse-allied') {
+      const isAlreadyAllied =
+        selectedBranches.includes('cse-allied') &&
+        selectedBranches.includes('cse') &&
+        selectedBranches.includes('ise');
+      if (isAlreadyAllied) {
+        setSelectedBranches(['cse']);
+      } else {
+        setSelectedBranches(['cse-allied', 'cse', 'ise', 'cse-aiml', 'cse-ds', 'cse-cy']);
+      }
+      return;
+    }
+
+    setSelectedBranches((prev) => {
+      const exists = prev.includes(branchId);
+      let updated = exists ? prev.filter((b) => b !== branchId) : [...prev, branchId];
+      if (updated.length === 0) updated = ['cse'];
+      return updated;
+    });
+  };
+
+  const applyBranchPreset = (preset: 'cse-allied' | 'circuit' | 'all') => {
+    if (preset === 'cse-allied') {
+      setSelectedBranches(['cse-allied', 'cse', 'ise', 'cse-aiml', 'cse-ds', 'cse-cy']);
+    } else if (preset === 'circuit') {
+      setSelectedBranches(['ece', 'eee']);
+    } else if (preset === 'all') {
+      setSelectedBranches(branches.map((b) => b.id));
+    }
   };
 
   // Add Resource
@@ -144,54 +205,90 @@ export default function AdminPage() {
     e.preventDefault();
     if (!newTitle.trim() || !newSubject.trim()) return;
 
-    const resource: Resource = {
-      id: 'res-' + Date.now(),
-      subjectId: `${newBranch}-s${newSem}-${newSubject.toLowerCase().replace(/\s+/g, '-')}`,
-      subjectName: newSubject.trim(),
-      branchId: newBranch,
-      semester: Number(newSem),
-      universityId: 'vtu',
-      type: newType,
-      title: newTitle.trim(),
-      description: newDesc.trim() || 'Uploaded via Vidyaaraa Admin Panel.',
-      url: newUrl.trim() || '#demo',
-      isDemo: !newUrl.trim(),
-      uploadedAt: new Date().toISOString().split('T')[0],
-    };
+    setIsPublishing(true);
+    try {
+      const isCSEAllied =
+        selectedBranches.includes('cse-allied') ||
+        (selectedBranches.includes('cse') && selectedBranches.includes('ise'));
 
-    await addResource(resource);
-    await loadAllData();
-    setShowAddResource(false);
-    // Reset form
-    setNewTitle('');
-    setNewSubject('');
-    setNewUrl('');
-    setNewDesc('');
+      const finalBranchId = isCSEAllied
+        ? 'cse-allied'
+        : selectedBranches.length > 0
+        ? selectedBranches.join(',')
+        : 'cse-allied';
+
+      await createResource({
+        subjectId: `${finalBranchId}-s${newSem}-${newSubject.toLowerCase().replace(/\s+/g, '-')}`,
+        subjectName: newSubject.trim(),
+        branchId: finalBranchId,
+        semester: Number(newSem),
+        universityId: 'vtu',
+        type: newType,
+        title: newTitle.trim(),
+        description: newDesc.trim() || 'Uploaded via Vidyaaraa Admin Panel.',
+        url: newUrl.trim() || '#demo',
+        isDemo: !newUrl.trim() || newUrl.trim() === '#demo',
+      });
+
+      await loadAllData();
+      setShowAddResource(false);
+      // Reset form
+      setNewTitle('');
+      setNewSubject('');
+      setNewUrl('');
+      setNewDesc('');
+      setSelectedBranches(['cse-allied', 'cse', 'ise', 'cse-aiml', 'cse-ds', 'cse-cy']);
+    } catch (err: any) {
+      alert(`Error publishing resource: ${err?.message || err}`);
+    } finally {
+      setIsPublishing(false);
+    }
   };
 
   const handleDeleteResource = async (id: string) => {
-    if (confirm('Delete this resource?')) {
-      await removeResource(id);
-      setResourcesList((prev) => prev.filter((r) => r.id !== id));
+    if (confirm('Delete this resource from database?')) {
+      try {
+        await deleteResource(id);
+        setResourcesList((prev) => prev.filter((r) => r.id !== id));
+      } catch (err: any) {
+        alert(`Failed to delete resource: ${err?.message || err}`);
+      }
     }
   };
 
   // Requests Status Change
-  const handleStatusChange = async (id: string, status: AdminNoteRequest['status']) => {
-    await updateRequestStatus(id, status);
-    const updated = await fetchAllRequests();
-    setRequestsList(updated);
+  const handleStatusChange = async (id: string, status: NoteRequest['status']) => {
+    try {
+      await updateNoteRequestStatus(id, status);
+      setRequestsList((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, status } : r))
+      );
+    } catch (err: any) {
+      alert(`Failed to update status: ${err?.message || err}`);
+    }
   };
 
   const handleDeleteRequest = async (id: string) => {
-    await removeNoteRequest(id);
-    setRequestsList((prev) => prev.filter((r) => r.id !== id));
+    if (confirm('Delete this note request?')) {
+      try {
+        await deleteNoteRequest(id);
+        setRequestsList((prev) => prev.filter((r) => r.id !== id));
+      } catch (err: any) {
+        alert(`Failed to delete request: ${err?.message || err}`);
+      }
+    }
   };
 
   // Feedback Delete
   const handleDeleteFeedback = async (id: string) => {
-    await removeFeedback(id);
-    setFeedbackList((prev) => prev.filter((f) => f.id !== id));
+    if (confirm('Delete this feedback?')) {
+      try {
+        await deleteFeedback(id);
+        setFeedbackList((prev) => prev.filter((f) => f.id !== id));
+      } catch (err: any) {
+        alert(`Failed to delete feedback: ${err?.message || err}`);
+      }
+    }
   };
 
   // AI Test
@@ -238,7 +335,7 @@ export default function AdminPage() {
     const matchQuery =
       r.title.toLowerCase().includes(resourceSearch.toLowerCase()) ||
       r.subjectName.toLowerCase().includes(resourceSearch.toLowerCase());
-    const matchBranch = resourceBranch === 'all' || r.branchId === resourceBranch;
+    const matchBranch = resourceBranch === 'all' || isBranchMatch(r.branchId, resourceBranch);
     const matchSem = resourceSem === 'all' || r.semester === Number(resourceSem);
     return matchQuery && matchBranch && matchSem;
   });
@@ -249,10 +346,13 @@ export default function AdminPage() {
   const availableRequests = requestsList.filter((r) => r.status === 'Available').length;
   const avgRating =
     feedbackList.length > 0
-      ? (feedbackList.reduce((acc, curr) => acc + curr.rating, 0) / feedbackList.length).toFixed(1)
+      ? (
+          feedbackList.reduce((acc, curr) => acc + curr.rating, 0) /
+          feedbackList.length
+        ).toFixed(1)
       : '5.0';
 
-  // PASSCODE LOGIN SCREEN
+  // AUTHENTICATION LOGIN SCREEN
   if (!isAuthenticated) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center px-4 py-12 bg-gradient-to-b from-[var(--bg)] via-[var(--bg-overlay)] to-[var(--bg)]">
@@ -266,40 +366,64 @@ export default function AdminPage() {
               Vidyaaraa Admin Portal
             </h1>
             <p className="text-xs text-[var(--text-2)]">
-              Enter the administrator passcode to access management tools.
+              Authenticate via Supabase Admin credentials to manage platform database.
             </p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="text-left space-y-1.5">
-              <label htmlFor={passcodeInputId} className="text-xs font-semibold text-[var(--text-2)]">
-                Admin Passcode
+          <form onSubmit={handleLogin} className="space-y-4 text-left">
+            <div className="space-y-1.5">
+              <label htmlFor={emailInputId} className="text-xs font-semibold text-[var(--text-2)] flex items-center gap-1.5">
+                <Mail size={13} />
+                <span>Admin Email</span>
               </label>
               <input
-                id={passcodeInputId}
-                type="password"
-                value={passcode}
+                id={emailInputId}
+                type="text"
+                value={email}
                 onChange={(e) => {
-                  setPasscode(e.target.value);
-                  setAuthError(false);
+                  setEmail(e.target.value);
+                  setAuthError(null);
                 }}
-                placeholder="Enter passcode (e.g. vidyaaraa2026)"
+                placeholder="admin@vidyaaraa.in"
+                required
                 className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--bg)] border border-[var(--bd)] text-sm text-[var(--text-1)] focus:outline-none focus:border-[var(--accent)] transition-colors"
                 autoFocus
               />
-              {authError && (
-                <p className="text-[11px] text-red-500 flex items-center gap-1 mt-1">
-                  <AlertCircle size={12} /> Incorrect passcode. Default is <span className="font-mono font-bold">vidyaaraa2026</span>
-                </p>
-              )}
             </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor={passwordInputId} className="text-xs font-semibold text-[var(--text-2)] flex items-center gap-1.5">
+                <Key size={13} />
+                <span>Admin Password</span>
+              </label>
+              <input
+                id={passwordInputId}
+                type="password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setAuthError(null);
+                }}
+                placeholder="••••••••••••"
+                required
+                className="w-full px-3.5 py-2.5 rounded-xl bg-[var(--bg)] border border-[var(--bd)] text-sm text-[var(--text-1)] focus:outline-none focus:border-[var(--accent)] transition-colors"
+              />
+            </div>
+
+            {authError && (
+              <p className="text-[11px] text-red-500 flex items-center gap-1 mt-1">
+                <AlertCircle size={12} className="shrink-0" />
+                <span>{authError}</span>
+              </p>
+            )}
 
             <button
               type="submit"
-              className="btn btn-primary w-full py-2.5 flex items-center justify-center gap-2 font-semibold shadow-md hover:brightness-110"
+              disabled={isLoggingIn}
+              className="btn btn-primary w-full py-2.5 flex items-center justify-center gap-2 font-semibold shadow-md hover:brightness-110 disabled:opacity-50"
             >
               <ShieldCheck size={18} />
-              <span>Unlock Admin Panel</span>
+              <span>{isLoggingIn ? 'Authenticating...' : 'Sign In as Admin'}</span>
             </button>
           </form>
 
@@ -331,26 +455,38 @@ export default function AdminPage() {
                 <h1 className="text-base font-extrabold text-[var(--text-1)] tracking-tight">
                   Vidyaaraa Admin Panel
                 </h1>
-                <span className="badge badge-cyan text-[10px]">Master Console</span>
+                <span className="badge badge-cyan text-[10px]">Supabase Integrated</span>
                 {isSupabaseConfigured() ? (
                   <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400 bg-emerald-950/40 border border-emerald-500/30 px-2 py-0.5 rounded-full font-mono">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                    Supabase Live
+                    PostgreSQL Live
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--text-3)] bg-[var(--bg-overlay)] border border-[var(--bd)] px-2 py-0.5 rounded-full font-mono" title="Add NEXT_PUBLIC_SUPABASE_URL to connect cloud DB">
+                  <span
+                    className="inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--text-3)] bg-[var(--bg-overlay)] border border-[var(--bd)] px-2 py-0.5 rounded-full font-mono"
+                    title="Add NEXT_PUBLIC_SUPABASE_URL to connect cloud DB"
+                  >
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                    Local Mode
+                    Fallback Mode
                   </span>
                 )}
               </div>
               <p className="text-[11px] text-[var(--text-3)]">
-                Manage resources, requests, user feedback, and AI assistant
+                Manage resources, student requests, feedbacks, and AI model parameters
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2.5">
+            <button
+              onClick={loadAllData}
+              disabled={isLoadingData}
+              className="btn btn-ghost btn-sm text-xs flex items-center gap-1.5 border border-[var(--bd)] text-[var(--text-2)]"
+              title="Reload all data from Supabase"
+            >
+              <RefreshCw size={13} className={isLoadingData ? 'animate-spin' : ''} />
+              <span>Refresh</span>
+            </button>
             <Link
               href="/"
               target="_blank"
@@ -451,7 +587,7 @@ export default function AdminPage() {
                 <div className="text-3xl font-extrabold text-[var(--text-1)]">
                   {resourcesList.length}
                 </div>
-                <p className="text-[11px] text-[var(--text-3)]">Notes, PYQs, Lab Manuals</p>
+                <p className="text-[11px] text-[var(--text-3)]">All branches & semesters</p>
               </div>
 
               <div className="card p-5 border-[var(--bd)] bg-[var(--bg-raised)] space-y-2">
@@ -518,7 +654,7 @@ export default function AdminPage() {
                       <div className="space-y-0.5 min-w-0">
                         <p className="font-semibold text-[var(--text-1)] truncate">{req.subject}</p>
                         <p className="text-[10px] text-[var(--text-3)]">
-                          {req.branch} · {req.sem}
+                          {req.branch} · {req.semester}
                         </p>
                       </div>
                       <span
@@ -534,6 +670,9 @@ export default function AdminPage() {
                       </span>
                     </div>
                   ))}
+                  {requestsList.length === 0 && (
+                    <p className="text-xs text-[var(--text-3)] text-center py-4">No student requests submitted yet.</p>
+                  )}
                 </div>
               </div>
 
@@ -570,6 +709,9 @@ export default function AdminPage() {
                       <span className="badge badge-cyan text-[9px]">{fb.category}</span>
                     </div>
                   ))}
+                  {feedbackList.length === 0 && (
+                    <p className="text-xs text-[var(--text-3)] text-center py-4">No student feedback submitted yet.</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -601,11 +743,12 @@ export default function AdminPage() {
                   onChange={(e) => setResourceBranch(e.target.value)}
                   className="px-3 py-2 bg-[var(--bg-raised)] border border-[var(--bd)] rounded-xl text-xs text-[var(--text-1)] focus:outline-none"
                 >
-                  <option value="all">All Branches</option>
-                  <option value="cse">CSE</option>
-                  <option value="ise">ISE</option>
-                  <option value="ece">ECE</option>
-                  <option value="me">ME</option>
+                  <option value="all">All Branches ({branches.length})</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.shortName} — {b.name}
+                    </option>
+                  ))}
                 </select>
 
                 <select
@@ -656,7 +799,7 @@ export default function AdminPage() {
                         <td className="py-3 px-4 text-[var(--text-2)] whitespace-nowrap">{res.subjectName}</td>
                         <td className="py-3 px-4 whitespace-nowrap">
                           <span className="badge badge-cyan text-[10px] uppercase font-mono">
-                            {res.branchId} · S{res.semester}
+                            {formatBranchName(res.branchId)} · S{res.semester}
                           </span>
                         </td>
                         <td className="py-3 px-4 whitespace-nowrap">
@@ -688,6 +831,13 @@ export default function AdminPage() {
                         </td>
                       </tr>
                     ))}
+                    {filteredResources.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="py-8 text-center text-xs text-[var(--text-3)]">
+                          No resources match the selected filters.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -695,8 +845,8 @@ export default function AdminPage() {
 
             {/* Modal: Add Resource */}
             {showAddResource && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-                <div className="card max-w-lg w-full p-6 border-[var(--bd)] bg-[var(--bg-raised)] shadow-2xl space-y-4">
+              <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+                <div className="card max-w-xl w-full p-6 border-[var(--bd)] bg-[var(--bg-raised)] shadow-2xl space-y-4 my-8">
                   <div className="flex items-center justify-between border-b border-[var(--bd)] pb-3">
                     <h2 className="text-sm font-bold text-[var(--text-1)] flex items-center gap-2">
                       <Plus size={16} className="text-[var(--accent)]" />
@@ -719,7 +869,7 @@ export default function AdminPage() {
                         id={newTitleId}
                         type="text"
                         required
-                        placeholder="e.g. Complete DBMS Unit 1 to 5 Notes"
+                        placeholder="e.g. Complete ACT (Automata) Unit 1 to 5 Notes"
                         value={newTitle}
                         onChange={(e) => setNewTitle(e.target.value)}
                         className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--bd)] rounded-xl text-[var(--text-1)] focus:outline-none focus:border-[var(--accent)]"
@@ -735,7 +885,7 @@ export default function AdminPage() {
                           id={newSubjectId}
                           type="text"
                           required
-                          placeholder="e.g. Database Management"
+                          placeholder="e.g. Automata Theory & Computability (ACT)"
                           value={newSubject}
                           onChange={(e) => setNewSubject(e.target.value)}
                           className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--bd)] rounded-xl text-[var(--text-1)] focus:outline-none focus:border-[var(--accent)]"
@@ -757,28 +907,105 @@ export default function AdminPage() {
                           <option value="lab-manual">Lab Manual</option>
                           <option value="important-questions">Important Questions</option>
                           <option value="syllabus">Syllabus</option>
+                          <option value="reference">Reference Material</option>
                         </select>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label htmlFor={newBranchId} className="block text-[11px] font-semibold text-[var(--text-2)] mb-1">
-                          Branch
-                        </label>
-                        <select
-                          id={newBranchId}
-                          value={newBranch}
-                          onChange={(e) => setNewBranch(e.target.value)}
-                          className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--bd)] rounded-xl text-[var(--text-1)] focus:outline-none"
-                        >
-                          <option value="cse">CSE</option>
-                          <option value="ise">ISE</option>
-                          <option value="ece">ECE</option>
-                          <option value="me">ME</option>
-                        </select>
+                    {/* Multi-Branch Tagging Section */}
+                    <div className="space-y-2.5 p-3 rounded-xl border border-[var(--bd)] bg-[var(--bg-overlay)]">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                          <label className="block text-[11px] font-bold text-[var(--text-1)]">
+                            Applicable Branches (Multi-Branch Tagging) *
+                          </label>
+                          <p className="text-[10px] text-[var(--text-3)]">
+                            Common subjects (like ACT, DBMS, ADA, CN) will automatically appear under all tagged branch filters.
+                          </p>
+                        </div>
+
+                        {/* Quick Presets */}
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <button
+                            type="button"
+                            onClick={() => applyBranchPreset('cse-allied')}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all border ${
+                              selectedBranches.includes('cse-allied') ||
+                              (selectedBranches.includes('cse') && selectedBranches.includes('ise'))
+                                ? 'bg-[var(--accent)] text-black border-[var(--accent)] shadow-sm'
+                                : 'bg-[var(--bg-raised)] text-[var(--text-2)] border-[var(--bd)] hover:text-[var(--text-1)]'
+                            }`}
+                          >
+                            ⚡ CSE, ISE & Allied
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => applyBranchPreset('circuit')}
+                            className={`px-2 py-1 rounded-lg text-[10px] font-bold transition-all border ${
+                              selectedBranches.includes('ece') && selectedBranches.includes('eee') && selectedBranches.length === 2
+                                ? 'bg-[var(--accent)] text-black border-[var(--accent)]'
+                                : 'bg-[var(--bg-raised)] text-[var(--text-2)] border-[var(--bd)] hover:text-[var(--text-1)]'
+                            }`}
+                          >
+                            🔌 ECE & EEE
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => applyBranchPreset('all')}
+                            className="px-2 py-1 rounded-lg text-[10px] font-bold bg-[var(--bg-raised)] text-[var(--text-2)] border border-[var(--bd)] hover:text-[var(--text-1)]"
+                          >
+                            🎓 All Branches
+                          </button>
+                        </div>
                       </div>
 
+                      {/* Branch Badges / Pills */}
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 pt-1">
+                        {branches.map((b) => {
+                          const isSelected =
+                            selectedBranches.includes(b.id) ||
+                            (b.id === 'cse-allied' &&
+                              (selectedBranches.includes('cse-allied') ||
+                                (selectedBranches.includes('cse') && selectedBranches.includes('ise'))));
+
+                          return (
+                            <button
+                              key={b.id}
+                              type="button"
+                              onClick={() => toggleBranchSelection(b.id)}
+                              className={`px-2 py-1.5 rounded-lg text-[10px] font-medium text-left flex items-center justify-between gap-1.5 transition-all border ${
+                                isSelected
+                                  ? 'bg-[rgba(0,212,170,0.12)] border-[rgba(0,212,170,0.4)] text-[var(--accent)] font-semibold shadow-xs'
+                                  : 'bg-[var(--bg)] border-[var(--bd)] text-[var(--text-3)] hover:text-[var(--text-2)] hover:border-[var(--bd-hover)]'
+                              }`}
+                            >
+                              <span className="truncate">{b.shortName}</span>
+                              <span
+                                className={`w-3.5 h-3.5 rounded flex items-center justify-center text-[9px] font-bold shrink-0 ${
+                                  isSelected ? 'bg-[var(--accent)] text-black' : 'border border-[var(--bd)]'
+                                }`}
+                              >
+                                {isSelected ? '✓' : ''}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Selected Summary Info */}
+                      <div className="pt-1 flex items-center gap-1.5 text-[10px] text-emerald-400 font-mono">
+                        <CheckCircle2 size={12} className="shrink-0" />
+                        <span className="truncate">
+                          Applicable to:{' '}
+                          {selectedBranches.includes('cse-allied') ||
+                          (selectedBranches.includes('cse') && selectedBranches.includes('ise'))
+                            ? 'CSE, ISE, and Allied Branches (Common Subjects)'
+                            : selectedBranches.map((id) => formatBranchName(id)).join(', ')}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label htmlFor={newSemId} className="block text-[11px] font-semibold text-[var(--text-2)] mb-1">
                           Semester
@@ -796,20 +1023,20 @@ export default function AdminPage() {
                           ))}
                         </select>
                       </div>
-                    </div>
 
-                    <div>
-                      <label htmlFor={newUrlId} className="block text-[11px] font-semibold text-[var(--text-2)] mb-1">
-                        Resource Link / Google Drive URL
-                      </label>
-                      <input
-                        id={newUrlId}
-                        type="url"
-                        placeholder="https://drive.google.com/... or leave empty for demo"
-                        value={newUrl}
-                        onChange={(e) => setNewUrl(e.target.value)}
-                        className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--bd)] rounded-xl text-[var(--text-1)] focus:outline-none focus:border-[var(--accent)]"
-                      />
+                      <div>
+                        <label htmlFor={newUrlId} className="block text-[11px] font-semibold text-[var(--text-2)] mb-1">
+                          Resource Link / Google Drive URL
+                        </label>
+                        <input
+                          id={newUrlId}
+                          type="url"
+                          placeholder="https://drive.google.com/... or leave empty"
+                          value={newUrl}
+                          onChange={(e) => setNewUrl(e.target.value)}
+                          className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--bd)] rounded-xl text-[var(--text-1)] focus:outline-none focus:border-[var(--accent)]"
+                        />
+                      </div>
                     </div>
 
                     <div>
@@ -834,8 +1061,12 @@ export default function AdminPage() {
                       >
                         Cancel
                       </button>
-                      <button type="submit" className="btn btn-primary btn-sm text-xs font-semibold">
-                        Publish Resource
+                      <button
+                        type="submit"
+                        disabled={isPublishing}
+                        className="btn btn-primary btn-sm text-xs font-semibold disabled:opacity-50"
+                      >
+                        {isPublishing ? 'Publishing...' : 'Publish Resource'}
                       </button>
                     </div>
                   </form>
@@ -856,10 +1087,10 @@ export default function AdminPage() {
                 </p>
               </div>
               <button
-                onClick={() => setRequestsList(getStoredRequests())}
+                onClick={loadAllData}
                 className="btn btn-ghost btn-sm text-xs flex items-center gap-1.5 border border-[var(--bd)]"
               >
-                <RefreshCw size={13} />
+                <RefreshCw size={13} className={isLoadingData ? 'animate-spin' : ''} />
                 <span>Refresh</span>
               </button>
             </div>
@@ -882,7 +1113,7 @@ export default function AdminPage() {
                         <td className="py-3 px-4 font-semibold text-[var(--text-1)]">{req.subject}</td>
                         <td className="py-3 px-4">
                           <span className="badge badge-cyan text-[10px] font-mono">
-                            {req.branch} · {req.sem}
+                            {req.branch} · {req.semester}
                           </span>
                         </td>
                         <td className="py-3 px-4 text-[var(--text-3)] font-mono text-[11px]">
@@ -935,6 +1166,13 @@ export default function AdminPage() {
                         </td>
                       </tr>
                     ))}
+                    {requestsList.length === 0 && (
+                      <tr>
+                        <td colSpan={5} className="py-8 text-center text-xs text-[var(--text-3)]">
+                          No student requests found in database.
+                        </td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -995,6 +1233,11 @@ export default function AdminPage() {
                   </div>
                 </div>
               ))}
+              {feedbackList.length === 0 && (
+                <div className="col-span-full py-8 text-center text-xs text-[var(--text-3)]">
+                  No student feedback submitted yet.
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1092,7 +1335,9 @@ export default function AdminPage() {
                   {aiResponse ? (
                     aiResponse
                   ) : (
-                    <span className="text-[var(--text-3)]">Click &quot;Run Test&quot; to test the live streaming response from Meta muse-spark-1.3...</span>
+                    <span className="text-[var(--text-3)]">
+                      Click &quot;Run Test&quot; to test the live streaming response from Meta muse-spark-1.3...
+                    </span>
                   )}
                 </div>
               </div>

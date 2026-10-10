@@ -117,22 +117,22 @@ export default function VidyaaraaAIPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-4rem)] pt-16 bg-[var(--bg)] text-[var(--text-1)]">
-      {/* Top Header */}
-      <header className="border-b border-[var(--bd)] bg-[var(--bg-raised)] py-3.5 px-4 sticky top-16 z-30 shadow-sm">
+    <div className="h-[calc(100vh-4rem)] flex flex-col bg-[var(--bg)] text-[var(--text-1)] overflow-hidden">
+      {/* 1. Top Sub-Header */}
+      <header className="flex-shrink-0 border-b border-[var(--bd)] bg-[var(--bg-raised)]/90 backdrop-blur-sm py-2.5 px-4 z-20 shadow-sm">
         <div className="container-cf max-w-4xl flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#00D4AA] to-[#7C3AED] flex items-center justify-center text-slate-900 shadow-md">
-              <Sparkles size={20} className="text-white animate-pulse" />
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#00D4AA] to-[#7C3AED] flex items-center justify-center text-slate-900 shadow-md">
+              <Sparkles size={16} className="text-white animate-pulse" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="font-extrabold text-base tracking-tight text-[var(--text-1)]">
+                <h1 className="font-extrabold text-sm tracking-tight text-[var(--text-1)]">
                   Vidyaaraa AI
                 </h1>
                 <span className="badge badge-cyan text-[10px]">Academic Copilot</span>
               </div>
-              <p className="text-xs text-[var(--text-2)]">
+              <p className="text-[11px] text-[var(--text-3)]">
                 VTU & Engineering Study Assistant · Meta AI Powered
               </p>
             </div>
@@ -144,109 +144,111 @@ export default function VidyaaraaAIPage() {
               className="btn btn-ghost btn-sm text-xs text-[var(--text-3)] hover:text-red-400 flex items-center gap-1.5"
               title="Clear conversation"
             >
-              <Trash2 size={15} />
+              <Trash2 size={14} />
               <span className="hidden sm:inline">Clear Chat</span>
             </button>
           )}
         </div>
       </header>
 
-      {/* Main Chat Area */}
-      <main className="flex-1 container-cf max-w-4xl w-full flex flex-col px-4 py-6">
-        {messages.length === 0 ? (
-          /* Empty State */
-          <div className="my-auto flex flex-col items-center text-center space-y-6 max-w-xl mx-auto py-8 fade-in">
-            <div className="w-16 h-16 rounded-2xl bg-[rgba(0,212,170,0.1)] border border-[rgba(0,212,170,0.2)] flex items-center justify-center text-[var(--accent)] shadow-lg">
-              <Bot size={36} />
-            </div>
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold tracking-tight">
-                Hey! 👋 I'm <span className="text-gradient">Vidyaaraa AI</span>
-              </h2>
-              <p className="text-sm text-[var(--text-2)] leading-relaxed">
-                Your instant academic copilot for VTU subjects, 2-mark & 5-mark exam answers, formulas, notes, and placement prep.
-              </p>
-            </div>
+      {/* 2. Scrollable Messages / Empty State Area */}
+      <div className="flex-1 overflow-y-auto px-4 py-6 scrollbar-thin">
+        <div className="container-cf max-w-4xl w-full flex flex-col min-h-full">
+          {messages.length === 0 ? (
+            /* Empty State */
+            <div className="my-auto flex flex-col items-center text-center space-y-5 max-w-xl mx-auto py-4 fade-in">
+              <div className="w-14 h-14 rounded-2xl bg-[rgba(0,212,170,0.1)] border border-[rgba(0,212,170,0.25)] flex items-center justify-center text-[var(--accent)] shadow-md">
+                <Bot size={30} />
+              </div>
+              <div className="space-y-1.5">
+                <h2 className="text-xl sm:text-2xl font-bold tracking-tight">
+                  Hey! 👋 I'm <span className="text-gradient">Vidyaaraa AI</span>
+                </h2>
+                <p className="text-xs sm:text-sm text-[var(--text-2)] leading-relaxed max-w-md mx-auto">
+                  Your instant academic copilot for VTU subjects, 2-mark & 5-mark exam answers, formulas, notes, and placement prep.
+                </p>
+              </div>
 
-            {/* Quick Prompt Suggestions */}
-            <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-left pt-2">
-              {SAMPLE_PROMPTS.map((item, idx) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => handleSend(item.prompt)}
-                    className="card p-3 flex items-center justify-between text-xs hover:border-[var(--accent)] hover:bg-[var(--bg-overlay)] transition-all group"
-                  >
-                    <div className="flex items-center gap-2.5 overflow-hidden">
-                      <span className="p-1.5 rounded-md bg-[rgba(0,212,170,0.1)] text-[var(--accent)] flex-shrink-0">
-                        <Icon size={14} />
-                      </span>
-                      <span className="font-medium text-[var(--text-1)] truncate">{item.label}</span>
-                    </div>
-                    <ArrowRight size={13} className="text-[var(--text-3)] group-hover:text-[var(--accent)] group-hover:translate-x-0.5 transition-all flex-shrink-0" />
-                  </button>
-                );
-              })}
+              {/* Quick Prompt Suggestions */}
+              <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-left pt-2">
+                {SAMPLE_PROMPTS.map((item, idx) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleSend(item.prompt)}
+                      className="card p-3 flex items-center justify-between text-xs hover:border-[var(--accent)] hover:bg-[var(--bg-overlay)] transition-all group"
+                    >
+                      <div className="flex items-center gap-2.5 overflow-hidden">
+                        <span className="p-1.5 rounded-md bg-[rgba(0,212,170,0.1)] text-[var(--accent)] flex-shrink-0">
+                          <Icon size={14} />
+                        </span>
+                        <span className="font-medium text-[var(--text-1)] truncate">{item.label}</span>
+                      </div>
+                      <ArrowRight size={13} className="text-[var(--text-3)] group-hover:text-[var(--accent)] group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ) : (
-          /* Messages Stream */
-          <div className="space-y-4 pb-24 w-full">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex gap-3 text-sm ${
-                  msg.role === 'user' ? 'justify-end' : 'justify-start'
-                }`}
-              >
-                {msg.role === 'assistant' && (
-                  <div className="w-8 h-8 rounded-lg bg-[rgba(0,212,170,0.12)] border border-[rgba(0,212,170,0.25)] flex items-center justify-center text-[var(--accent)] flex-shrink-0 mt-0.5">
-                    <Bot size={18} />
-                  </div>
-                )}
-
+          ) : (
+            /* Messages Stream */
+            <div className="space-y-4 w-full pb-4">
+              {messages.map((msg) => (
                 <div
-                  className={`max-w-[88%] sm:max-w-[80%] rounded-2xl p-4 shadow-sm ${
-                    msg.role === 'user'
-                      ? 'bg-[var(--accent)] text-slate-950 font-medium rounded-tr-none'
-                      : 'card bg-[var(--bg-raised)] text-[var(--text-1)] rounded-tl-none border-[var(--bd)]'
+                  key={msg.id}
+                  className={`flex gap-3 text-sm ${
+                    msg.role === 'user' ? 'justify-end' : 'justify-start'
                   }`}
                 >
-                  {msg.role === 'user' ? (
-                    <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
-                  ) : msg.content ? (
-                    <MarkdownRenderer content={msg.content} />
-                  ) : (
-                    <div className="flex items-center gap-2 text-[var(--text-3)] text-xs py-1">
-                      <span className="spinner w-3.5 h-3.5" />
-                      <span>Vidyaaraa AI is thinking...</span>
+                  {msg.role === 'assistant' && (
+                    <div className="w-8 h-8 rounded-lg bg-[rgba(0,212,170,0.12)] border border-[rgba(0,212,170,0.25)] flex items-center justify-center text-[var(--accent)] flex-shrink-0 mt-0.5">
+                      <Bot size={18} />
                     </div>
                   )}
 
                   <div
-                    className={`text-[10px] mt-2 flex justify-end ${
-                      msg.role === 'user' ? 'text-slate-800/80' : 'text-[var(--text-3)]'
+                    className={`max-w-[88%] sm:max-w-[80%] rounded-2xl p-4 shadow-sm ${
+                      msg.role === 'user'
+                        ? 'bg-[var(--accent)] text-slate-950 font-medium rounded-tr-none'
+                        : 'card bg-[var(--bg-raised)] text-[var(--text-1)] rounded-tl-none border-[var(--bd)]'
                     }`}
                   >
-                    {msg.timestamp}
+                    {msg.role === 'user' ? (
+                      <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                    ) : msg.content ? (
+                      <MarkdownRenderer content={msg.content} />
+                    ) : (
+                      <div className="flex items-center gap-2 text-[var(--text-3)] text-xs py-1">
+                        <span className="spinner w-3.5 h-3.5" />
+                        <span>Vidyaaraa AI is thinking...</span>
+                      </div>
+                    )}
+
+                    <div
+                      className={`text-[10px] mt-2 flex justify-end ${
+                        msg.role === 'user' ? 'text-slate-800/80' : 'text-[var(--text-3)]'
+                      }`}
+                    >
+                      {msg.timestamp}
+                    </div>
                   </div>
+
+                  {msg.role === 'user' && (
+                    <div className="w-8 h-8 rounded-lg bg-[var(--bg-overlay)] border border-[var(--bd)] flex items-center justify-center text-[var(--text-2)] flex-shrink-0 mt-0.5">
+                      <User size={18} />
+                    </div>
+                  )}
                 </div>
+              ))}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+        </div>
+      </div>
 
-                {msg.role === 'user' && (
-                  <div className="w-8 h-8 rounded-lg bg-[var(--bg-overlay)] border border-[var(--bd)] flex items-center justify-center text-[var(--text-2)] flex-shrink-0 mt-0.5">
-                    <User size={18} />
-                  </div>
-                )}
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-        )}
-      </main>
-
-      {/* Floating Input Dock */}
-      <footer className="fixed bottom-0 left-0 right-0 z-40 bg-[var(--bg-raised)]/90 backdrop-blur-md border-t border-[var(--bd)] py-3 px-4">
+      {/* 3. Pinned Bottom Input Dock */}
+      <footer className="flex-shrink-0 border-t border-[var(--bd)] bg-[var(--bg-raised)]/95 backdrop-blur-md py-3 px-4 z-20">
         <div className="container-cf max-w-4xl">
           <form
             onSubmit={(e) => {
@@ -268,7 +270,7 @@ export default function VidyaaraaAIPage() {
             <button
               type="submit"
               disabled={!input.trim() || isLoading}
-              className="btn btn-primary p-2.5 rounded-lg flex-shrink-0"
+              className="btn btn-primary p-2.5 rounded-lg flex-shrink-0 disabled:opacity-50"
               title="Send message"
             >
               {isLoading ? <span className="spinner w-4 h-4" /> : <Send size={16} />}

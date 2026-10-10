@@ -2,6 +2,7 @@
 
 import { FileText, Download, ExternalLink, Calendar } from 'lucide-react';
 import type { PYQ } from '@/types';
+import { formatBranchName } from '@/data/universities';
 
 export function PYQCard({ pyq }: { pyq: PYQ }) {
   return (
@@ -24,7 +25,7 @@ export function PYQCard({ pyq }: { pyq: PYQ }) {
             </span>
           </div>
           <span className="text-[10px] text-[var(--text-3)] font-mono block mt-0.5">
-            Code: {pyq.subjectCode} · Sem {pyq.semester} · {pyq.branchId.toUpperCase()}
+            Code: {pyq.subjectCode} · Sem {pyq.semester} · {formatBranchName(pyq.branchId)}
           </span>
         </div>
       </div>

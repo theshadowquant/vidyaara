@@ -16,7 +16,7 @@ function getMetaApiKey(): string | null {
       if (clean.startsWith('LLM_')) return clean;
     }
   }
-  return 'LLM_1794481081565778_uuxsQeTFe-rinarlgNRE143e3x4';
+  return null;
 }
 
 export class MetaProvider implements AIProvider {

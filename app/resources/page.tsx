@@ -1,57 +1,51 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { Search, SlidersHorizontal, BookOpen, GraduationCap, X } from 'lucide-react';
-import { universities, branches, semesters, subjects } from '@/data/universities';
-import { resources } from '@/data/resources';
+import { useState, useMemo, useEffect } from 'react';
+import { Search, SlidersHorizontal, BookOpen, X } from 'lucide-react';
+import { branches, semesters, isBranchMatch } from '@/data/universities';
+import { resources as staticResources } from '@/data/resources';
+import { fetchResources } from '@/lib/db/resources';
 import { ResourceCard } from '@/components/resources/ResourceCard';
-import type { ResourceType } from '@/types';
+import type { Resource } from '@/types';
 
 export default function ResourcesPage() {
-  const [selectedUni, setSelectedUni] = useState('vtu');
-  const [selectedBranch, setSelectedBranch] = useState('cse');
+  const [allResources, setAllResources] = useState<Resource[]>(staticResources);
+  const [selectedBranch, setSelectedBranch] = useState('cse-allied');
   const [selectedSem, setSelectedSem] = useState<number>(4);
-  const [selectedSubject, setSelectedSubject] = useState('');
-  const [selectedType, setSelectedType] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Dynamically filter subjects list based on branch & semester
-  const filteredSubjects = useMemo(() => {
-    return subjects.filter(
-      (s) => s.universityId === selectedUni && s.branchId === selectedBranch && s.semester === selectedSem
-    );
-  }, [selectedUni, selectedBranch, selectedSem]);
+  useEffect(() => {
+    fetchResources().then((data) => {
+      if (data && data.length > 0) {
+        setAllResources(data);
+      }
+    });
+  }, []);
 
   // Handle reset filters
   const handleClearFilters = () => {
-    setSelectedUni('vtu');
-    setSelectedBranch('cse');
-    setSelectedSem(4);
-    setSelectedSubject('');
-    setSelectedType('');
+    setSelectedBranch('all');
+    setSelectedSem(0);
     setSearchQuery('');
   };
 
   // Perform filtering on resource list
   const filteredResources = useMemo(() => {
-    return resources.filter((r) => {
-      if (r.universityId !== selectedUni) return false;
-      if (selectedBranch && r.branchId !== selectedBranch) return false;
-      if (selectedSem && r.semester !== selectedSem) return false;
-      if (selectedSubject && r.subjectId !== selectedSubject) return false;
-      if (selectedType && r.type !== selectedType) return false;
+    return allResources.filter((r) => {
+      if (selectedBranch && selectedBranch !== 'all' && !isBranchMatch(r.branchId, selectedBranch)) return false;
+      if (selectedSem && selectedSem !== 0 && r.semester !== selectedSem) return false;
       
       // Local client search query
       if (searchQuery.trim() !== '') {
         const q = searchQuery.toLowerCase();
         const matchesTitle = r.title.toLowerCase().includes(q);
-        const matchesDesc = r.description.toLowerCase().includes(q);
-        const matchesSubj = r.subjectName.toLowerCase().includes(q);
+        const matchesDesc = (r.description || '').toLowerCase().includes(q);
+        const matchesSubj = (r.subjectName || '').toLowerCase().includes(q);
         return matchesTitle || matchesDesc || matchesSubj;
       }
       return true;
     });
-  }, [selectedUni, selectedBranch, selectedSem, selectedSubject, selectedType, searchQuery]);
+  }, [allResources, selectedBranch, selectedSem, searchQuery]);
 
   return (
     <div className="section min-h-screen bg-[var(--bg)] py-12">
@@ -63,13 +57,13 @@ export default function ResourcesPage() {
             Resource Library
           </h1>
           <p className="text-xs text-[var(--text-2)] max-w-lg">
-            Find notes, syllabus, lab manuals, and important questions for your specific university branch and semester instantly.
+            Find notes, syllabus, lab manuals, and important questions for your specific branch and semester instantly.
           </p>
         </div>
 
-        {/* Filters Panel */}
-        <div className="card p-5 space-y-4">
-          <div className="flex justify-between items-center flex-wrap gap-4 border-b border-[var(--bd-subtle)] pb-3">
+        {/* Filters Panel: Branch + Semester + Search Bar */}
+        <div className="card p-5 space-y-4 shadow-sm border-[var(--bd)]">
+          <div className="flex justify-between items-center flex-wrap gap-4 border-b border-[var(--bd)] pb-3">
             <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--text-1)] uppercase tracking-wider">
               <SlidersHorizontal size={14} className="text-[var(--accent)]" />
               <span>Filters</span>
@@ -83,54 +77,37 @@ export default function ResourcesPage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
-            
-            {/* University */}
-            <div>
-              <label className="label">University</label>
-              <select
-                className="select text-xs"
-                value={selectedUni}
-                onChange={(e) => setSelectedUni(e.target.value)}
-              >
-                {universities.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.shortName}
-                  </option>
-                ))}
-              </select>
-            </div>
-
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
             {/* Branch */}
-            <div>
-              <label className="label">Branch</label>
+            <div className="md:col-span-4">
+              <label className="label text-[11px] font-semibold text-[var(--text-2)] mb-1 block">
+                Branch
+              </label>
               <select
-                className="select text-xs"
+                className="select text-xs w-full"
                 value={selectedBranch}
-                onChange={(e) => {
-                  setSelectedBranch(e.target.value);
-                  setSelectedSubject('');
-                }}
+                onChange={(e) => setSelectedBranch(e.target.value)}
               >
+                <option value="all">All Branches ({branches.length})</option>
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>
-                    {b.name} ({b.shortName})
+                    {b.shortName} — {b.name}
                   </option>
                 ))}
               </select>
             </div>
 
             {/* Semester */}
-            <div>
-              <label className="label">Semester</label>
+            <div className="md:col-span-3">
+              <label className="label text-[11px] font-semibold text-[var(--text-2)] mb-1 block">
+                Semester
+              </label>
               <select
-                className="select text-xs"
+                className="select text-xs w-full"
                 value={selectedSem}
-                onChange={(e) => {
-                  setSelectedSem(Number(e.target.value));
-                  setSelectedSubject('');
-                }}
+                onChange={(e) => setSelectedSem(Number(e.target.value))}
               >
+                <option value={0}>All Semesters</option>
                 {semesters.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.label}
@@ -139,54 +116,21 @@ export default function ResourcesPage() {
               </select>
             </div>
 
-            {/* Subject */}
-            <div>
-              <label className="label">Subject</label>
-              <select
-                className="select text-xs"
-                value={selectedSubject}
-                onChange={(e) => setSelectedSubject(e.target.value)}
-              >
-                <option value="">All Subjects</option>
-                {filteredSubjects.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} ({s.code})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Resource Type */}
-            <div>
-              <label className="label">Material Type</label>
-              <select
-                className="select text-xs"
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
-              >
-                <option value="">All Types</option>
-                <option value="notes">Notes</option>
-                <option value="question-paper">Question Papers</option>
-                <option value="lab-manual">Lab Manuals</option>
-                <option value="important-questions">Important Questions</option>
-                <option value="syllabus">Syllabus</option>
-                <option value="reference">Reference Material</option>
-              </select>
-            </div>
-
-          </div>
-
-          {/* Search text input */}
-          <div className="pt-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 text-[var(--text-3)]" size={16} />
-              <input
-                type="text"
-                placeholder="Search notes titles, subject name, modules..."
-                className="input pl-10 text-xs"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
+            {/* Search Bar */}
+            <div className="md:col-span-5">
+              <label className="label text-[11px] font-semibold text-[var(--text-2)] mb-1 block">
+                Search Notes
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 text-[var(--text-3)]" size={15} />
+                <input
+                  type="text"
+                  placeholder="Search notes, topics, subjects, modules..."
+                  className="input pl-9 text-xs w-full"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -201,7 +145,7 @@ export default function ResourcesPage() {
               <div className="space-y-1">
                 <h3 className="text-sm font-bold text-[var(--text-1)]">No resources found</h3>
                 <p className="text-xs text-[var(--text-2)] leading-relaxed">
-                  We don&apos;t have academic resources matching this query yet. Try changing the semester, subject, or search term.
+                  We don&apos;t have academic resources matching this query yet. Try changing the branch, semester, or search term.
                 </p>
               </div>
               <button onClick={handleClearFilters} className="btn btn-secondary btn-sm mx-auto">

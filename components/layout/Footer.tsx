@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { GraduationCap, Globe, MessageSquare, Briefcase } from 'lucide-react';
 
 const footerLinks = [
@@ -14,6 +15,10 @@ const footerLinks = [
 ];
 
 export function Footer() {
+  const pathname = usePathname();
+  if (pathname === '/ai') {
+    return null;
+  }
   return (
     <footer
       role="contentinfo"

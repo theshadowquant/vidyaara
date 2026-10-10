@@ -1,45 +1,51 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { Search, SlidersHorizontal, BookOpen, GraduationCap, X } from 'lucide-react';
-import { universities, branches, semesters, subjects } from '@/data/universities';
-import { pyqs } from '@/data/pyqs';
+import { useState, useMemo, useEffect } from 'react';
+import { Search, SlidersHorizontal, BookOpen, X } from 'lucide-react';
+import { branches, semesters, isBranchMatch } from '@/data/universities';
+import { pyqs as staticPYQs } from '@/data/pyqs';
+import { fetchPYQs } from '@/lib/db/pyqs';
 import { PYQCard } from '@/components/pyqs/PYQCard';
+import type { PYQ } from '@/types';
 
 export default function PYQsPage() {
-  const [selectedUni, setSelectedUni] = useState('vtu');
-  const [selectedBranch, setSelectedBranch] = useState('cse');
+  const [allPYQs, setAllPYQs] = useState<PYQ[]>(staticPYQs);
+  const [selectedBranch, setSelectedBranch] = useState('cse-allied');
   const [selectedSem, setSelectedSem] = useState<number>(4);
-  const [selectedSubject, setSelectedSubject] = useState('');
-  const [selectedExamType, setSelectedExamType] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
-  // Dynamically filter subjects list based on branch & semester
-  const filteredSubjects = useMemo(() => {
-    return subjects.filter(
-      (s) => s.universityId === selectedUni && s.branchId === selectedBranch && s.semester === selectedSem
-    );
-  }, [selectedUni, selectedBranch, selectedSem]);
+  useEffect(() => {
+    fetchPYQs().then((data) => {
+      if (data && data.length > 0) {
+        setAllPYQs(data);
+      }
+    });
+  }, []);
 
   // Handle reset filters
   const handleClearFilters = () => {
-    setSelectedUni('vtu');
-    setSelectedBranch('cse');
-    setSelectedSem(4);
-    setSelectedSubject('');
-    setSelectedExamType('');
+    setSelectedBranch('all');
+    setSelectedSem(0);
+    setSearchQuery('');
   };
 
   // Perform filtering on PYQ list
   const filteredPYQs = useMemo(() => {
-    return pyqs.filter((p) => {
-      if (p.universityId !== selectedUni) return false;
-      if (selectedBranch && p.branchId !== selectedBranch) return false;
-      if (selectedSem && p.semester !== selectedSem) return false;
-      if (selectedSubject && p.subjectId !== selectedSubject) return false;
-      if (selectedExamType && p.examType !== selectedExamType) return false;
+    return allPYQs.filter((p) => {
+      if (selectedBranch && selectedBranch !== 'all' && !isBranchMatch(p.branchId, selectedBranch)) return false;
+      if (selectedSem && selectedSem !== 0 && p.semester !== selectedSem) return false;
+      
+      if (searchQuery.trim() !== '') {
+        const q = searchQuery.toLowerCase();
+        const matchesSubj = (p.subjectName || '').toLowerCase().includes(q);
+        const matchesCode = (p.subjectCode || '').toLowerCase().includes(q);
+        const matchesYear = p.year ? p.year.toString().includes(q) : false;
+        const matchesType = (p.examType || '').toLowerCase().includes(q);
+        return matchesSubj || matchesCode || matchesYear || matchesType;
+      }
       return true;
     });
-  }, [selectedUni, selectedBranch, selectedSem, selectedSubject, selectedExamType]);
+  }, [allPYQs, selectedBranch, selectedSem, searchQuery]);
 
   return (
     <div className="section min-h-screen bg-[var(--bg)] py-12">
@@ -51,13 +57,13 @@ export default function PYQsPage() {
             Previous Year Question Papers
           </h1>
           <p className="text-xs text-[var(--text-2)] max-w-lg">
-            Find question papers in under 10 seconds. Select university, semester, and subject to browse.
+            Find question papers in under 10 seconds. Select your branch and semester to browse.
           </p>
         </div>
 
-        {/* Filters Panel */}
-        <div className="card p-5 space-y-4">
-          <div className="flex justify-between items-center flex-wrap gap-4 border-b border-[var(--bd-subtle)] pb-3">
+        {/* Filters Panel: Branch + Semester + Search Bar */}
+        <div className="card p-5 space-y-4 shadow-sm border-[var(--bd)]">
+          <div className="flex justify-between items-center flex-wrap gap-4 border-b border-[var(--bd)] pb-3">
             <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--text-1)] uppercase tracking-wider">
               <SlidersHorizontal size={14} className="text-[var(--brand-violet)]" />
               <span>Filters</span>
@@ -71,54 +77,37 @@ export default function PYQsPage() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-4">
-            
-            {/* University */}
-            <div>
-              <label className="label">University</label>
-              <select
-                className="select text-xs"
-                value={selectedUni}
-                onChange={(e) => setSelectedUni(e.target.value)}
-              >
-                {universities.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.shortName}
-                  </option>
-                ))}
-              </select>
-            </div>
-
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
             {/* Branch */}
-            <div>
-              <label className="label">Branch</label>
+            <div className="md:col-span-4">
+              <label className="label text-[11px] font-semibold text-[var(--text-2)] mb-1 block">
+                Branch
+              </label>
               <select
-                className="select text-xs"
+                className="select text-xs w-full"
                 value={selectedBranch}
-                onChange={(e) => {
-                  setSelectedBranch(e.target.value);
-                  setSelectedSubject('');
-                }}
+                onChange={(e) => setSelectedBranch(e.target.value)}
               >
+                <option value="all">All Branches ({branches.length})</option>
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>
-                    {b.name} ({b.shortName})
+                    {b.shortName} — {b.name}
                   </option>
                 ))}
               </select>
             </div>
 
             {/* Semester */}
-            <div>
-              <label className="label">Semester</label>
+            <div className="md:col-span-3">
+              <label className="label text-[11px] font-semibold text-[var(--text-2)] mb-1 block">
+                Semester
+              </label>
               <select
-                className="select text-xs"
+                className="select text-xs w-full"
                 value={selectedSem}
-                onChange={(e) => {
-                  setSelectedSem(Number(e.target.value));
-                  setSelectedSubject('');
-                }}
+                onChange={(e) => setSelectedSem(Number(e.target.value))}
               >
+                <option value={0}>All Semesters</option>
                 {semesters.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.label}
@@ -127,39 +116,22 @@ export default function PYQsPage() {
               </select>
             </div>
 
-            {/* Subject */}
-            <div>
-              <label className="label">Subject</label>
-              <select
-                className="select text-xs"
-                value={selectedSubject}
-                onChange={(e) => setSelectedSubject(e.target.value)}
-              >
-                <option value="">All Subjects</option>
-                {filteredSubjects.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} ({s.code})
-                  </option>
-                ))}
-              </select>
+            {/* Search Bar */}
+            <div className="md:col-span-5">
+              <label className="label text-[11px] font-semibold text-[var(--text-2)] mb-1 block">
+                Search Question Papers
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 text-[var(--text-3)]" size={15} />
+                <input
+                  type="text"
+                  placeholder="Search subject name, subject code, year (2024)..."
+                  className="input pl-9 text-xs w-full"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+              </div>
             </div>
-
-            {/* Exam Type */}
-            <div>
-              <label className="label">Exam Type</label>
-              <select
-                className="select text-xs"
-                value={selectedExamType}
-                onChange={(e) => setSelectedExamType(e.target.value)}
-              >
-                <option value="">All Types</option>
-                <option value="SEE">SEE (Semester End Exam)</option>
-                <option value="CIE">CIE (Internal Assessment)</option>
-                <option value="Model">Model Paper</option>
-                <option value="Practice">Practice Paper</option>
-              </select>
-            </div>
-
           </div>
         </div>
 
@@ -173,7 +145,7 @@ export default function PYQsPage() {
               <div className="space-y-1">
                 <h3 className="text-sm font-bold text-[var(--text-1)]">No question papers found</h3>
                 <p className="text-xs text-[var(--text-2)] leading-relaxed">
-                  We don&apos;t have question papers matching this exact filter combination. Try resetting the filters or switching subjects.
+                  We don&apos;t have question papers matching this exact filter combination. Try resetting the filters or searching for another subject.
                 </p>
               </div>
               <button onClick={handleClearFilters} className="btn btn-secondary btn-sm mx-auto">

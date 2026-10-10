@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { MessageSquare, Star, Send, Check } from 'lucide-react';
-import { addFeedback } from '@/lib/supabase';
+import { submitFeedback } from '@/lib/db/feedbacks';
 
 export function FeedbackSection() {
   const [rating, setRating] = useState<number>(5);
@@ -14,7 +14,7 @@ export function FeedbackSection() {
     e.preventDefault();
     if (!comment.trim()) return;
 
-    await addFeedback(rating, comment.trim(), category);
+    await submitFeedback({ rating, comment: comment.trim(), category });
     setSubmitted(true);
     setComment('');
     setTimeout(() => setSubmitted(false), 5000);

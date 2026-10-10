@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import {
   Sparkles,
   Send,
@@ -29,6 +30,7 @@ export type AIMode = 'Academic' | 'Exam PYQs' | 'Calculator' | 'Placement';
 export type AIContextScope = 'Auto' | 'VTU CSE' | 'VTU ISE' | 'VTU ECE' | 'General';
 
 export function VidyaaraaAiWidget() {
+  const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -196,6 +198,10 @@ export function VidyaaraaAiWidget() {
       handleSend();
     }
   };
+
+  if (pathname === '/ai') {
+    return null;
+  }
 
   return (
     <aside

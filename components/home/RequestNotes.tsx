@@ -2,31 +2,37 @@
 
 import React, { useState, useEffect } from 'react';
 import { FileQuestion, Send, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
-
-import { AdminNoteRequest as RequestItem } from '@/lib/admin-storage';
-import { fetchAllRequests, addNoteRequest } from '@/lib/supabase';
+import { fetchNoteRequests, submitNoteRequest, NoteRequest } from '@/lib/db/note-requests';
 
 export function RequestNotes() {
-  const [requests, setRequests] = useState<RequestItem[]>([]);
+  const [requests, setRequests] = useState<NoteRequest[]>([]);
   const [subject, setSubject] = useState('');
   const [branch, setBranch] = useState('CSE');
   const [sem, setSem] = useState('4th Sem');
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
-    fetchAllRequests().then((data) => setRequests(data));
+    fetchNoteRequests().then((data) => setRequests(data));
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!subject.trim()) return;
 
-    const newReq = await addNoteRequest({
+    await submitNoteRequest({
       subject: subject.trim(),
       branch,
-      sem,
-      status: 'Under Review',
+      semester: sem,
     });
+
+    const newReq: NoteRequest = {
+      id: 'req-' + Date.now(),
+      subject: subject.trim(),
+      branch,
+      semester: sem,
+      status: 'Under Review',
+      createdAt: new Date().toISOString().split('T')[0],
+    };
 
     setRequests((prev) => [newReq, ...prev]);
     setSubject('');
@@ -34,7 +40,7 @@ export function RequestNotes() {
     setTimeout(() => setSubmitted(false), 4000);
   };
 
-  const getStatusBadge = (status: RequestItem['status']) => {
+  const getStatusBadge = (status: NoteRequest['status']) => {
     switch (status) {
       case 'Available':
         return (
@@ -157,7 +163,7 @@ export function RequestNotes() {
                     <div className="text-[11px] text-[var(--text-3)] flex items-center gap-2">
                       <span className="font-semibold text-[var(--accent)]">{req.branch}</span>
                       <span>•</span>
-                      <span>{req.sem}</span>
+                      <span>{req.semester || (req as any).sem}</span>
                     </div>
                   </div>
                   <div className="flex-shrink-0">{getStatusBadge(req.status)}</div>

@@ -3,6 +3,7 @@
 import { FileText, Download, ExternalLink, Bookmark, Check } from 'lucide-react';
 import type { Resource } from '@/types';
 import { useState, useEffect } from 'react';
+import { formatBranchName } from '@/data/universities';
 
 export function ResourceCard({ resource }: { resource: Resource }) {
   const [saved, setSaved] = useState(false);
@@ -48,7 +49,7 @@ export function ResourceCard({ resource }: { resource: Resource }) {
         <div className="flex flex-wrap items-center gap-2 text-[10px] uppercase font-bold text-[var(--text-3)]">
           <span>Sem {resource.semester}</span>
           <span>•</span>
-          <span>{resource.branchId.toUpperCase()}</span>
+          <span className="text-[var(--accent)] font-mono">{formatBranchName(resource.branchId)}</span>
           <span>•</span>
           <span className="badge badge-cyan text-[9px]">{formattedType}</span>
         </div>
