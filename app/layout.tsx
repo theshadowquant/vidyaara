@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -13,10 +13,22 @@ const plusJakartaSans = Plus_Jakarta_Sans({
   display: "swap",
 });
 
+export const viewport: Viewport = {
+  themeColor: "#00D4AA",
+  width: "device-width",
+  initialScale: 1,
+};
+
 export const metadata: Metadata = {
   title: "Vidyaaraa — VTU Engineering Resources, Calculators & AI Copilot",
   description: "Vidyaaraa brings college notes, previous-year papers, SGPA and CGPA calculators, study tools and placement resources together in one place for VTU and engineering students.",
   keywords: "Vidyaaraa, VTU, SGPA, CGPA, engineering, notes, previous year papers, PYQ, calculator, study planner, placement prep, college resources, Vidyaaraa AI",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Vidyaaraa",
+  },
   icons: {
     icon: [
       { url: "/icon.png", type: "image/png" },
