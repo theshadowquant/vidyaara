@@ -93,7 +93,7 @@ export async function createPYQ(pyq: Omit<PYQ, 'id'>): Promise<PYQ | null> {
   const { data, error } = await client
     .from('pyqs')
     .insert({
-      subject_id: pyq.subjectId || null,
+      subject_id: pyq.subjectId && pyq.subjectId.trim() !== '' ? pyq.subjectId.trim() : null,
       subject_name: pyq.subjectName,
       subject_code: pyq.subjectCode,
       branch_id: pyq.branchId,

@@ -28,7 +28,7 @@ import {
   Mail,
   Key,
 } from 'lucide-react';
-import { branches, isBranchMatch, formatBranchName } from '@/data/universities';
+import { branches, subjects, isBranchMatch, formatBranchName } from '@/data/universities';
 import { fetchResources, createResource, deleteResource } from '@/lib/db/resources';
 import {
   fetchNoteRequests,
@@ -217,8 +217,15 @@ export default function AdminPage() {
         ? selectedBranches.join(',')
         : 'cse-allied';
 
+      // Check if the subject matches a predefined subject in reference data; otherwise leave as undefined (null in DB)
+      const matchedSubject = subjects.find(
+        (s) =>
+          s.name.toLowerCase() === newSubject.trim().toLowerCase() ||
+          s.code.toLowerCase() === newSubject.trim().toLowerCase()
+      );
+
       await createResource({
-        subjectId: `${finalBranchId}-s${newSem}-${newSubject.toLowerCase().replace(/\s+/g, '-')}`,
+        subjectId: matchedSubject ? matchedSubject.id : '',
         subjectName: newSubject.trim(),
         branchId: finalBranchId,
         semester: Number(newSem),

@@ -90,7 +90,7 @@ export async function createResource(resource: Omit<Resource, 'id' | 'uploadedAt
   const { data, error } = await client
     .from('resources')
     .insert({
-      subject_id: resource.subjectId || null,
+      subject_id: resource.subjectId && resource.subjectId.trim() !== '' ? resource.subjectId.trim() : null,
       subject_name: resource.subjectName,
       branch_id: resource.branchId,
       semester: resource.semester,
