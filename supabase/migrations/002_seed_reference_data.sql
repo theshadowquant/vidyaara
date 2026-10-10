@@ -10,6 +10,7 @@ ON CONFLICT (id) DO NOTHING;
 
 -- ── Branches ─────────────────────────────────────────────────────────────
 INSERT INTO public.branches (id, university_id, name, short_name, slug) VALUES
+  ('cse-allied', 'vtu', 'CSE, ISE & Allied Branches',                'CSE & Allied', 'cse-allied'),
   ('cse',        'vtu', 'Computer Science & Engineering',            'CSE',     'cse'),
   ('cse-ds',     'vtu', 'CSE (Data Science)',                        'CSE-DS',  'cse-ds'),
   ('cse-aiml',   'vtu', 'CSE (Artificial Intelligence & ML)',        'CSE-AIML','cse-aiml'),
@@ -26,7 +27,8 @@ INSERT INTO public.branches (id, university_id, name, short_name, slug) VALUES
   ('te',         'vtu', 'Telecommunication Engineering',             'TE',      'te'),
   ('ind',        'vtu', 'Industrial Engineering & Management',       'IEM',     'ind'),
   ('mba',        'vtu', 'MBA',                                       'MBA',     'mba'),
-  ('mca',        'vtu', 'MCA',                                       'MCA',     'mca')
+  ('mca',        'vtu', 'MCA',                                       'MCA',     'mca'),
+  ('other',      'vtu', 'Other Branches',                            'Other',   'other')
 ON CONFLICT (id) DO NOTHING;
 
 -- ── Subjects (CSE — all 8 semesters) ────────────────────────────────────

@@ -209,12 +209,13 @@ export default function AdminPage() {
     try {
       const isCSEAllied =
         selectedBranches.includes('cse-allied') ||
-        (selectedBranches.includes('cse') && selectedBranches.includes('ise'));
+        (selectedBranches.includes('cse') && selectedBranches.includes('ise')) ||
+        selectedBranches.some((b) => ['cse', 'ise', 'cse-ds', 'cse-aiml', 'cse-cy'].includes(b));
 
       const finalBranchId = isCSEAllied
         ? 'cse-allied'
         : selectedBranches.length > 0
-        ? selectedBranches.join(',')
+        ? selectedBranches[0]
         : 'cse-allied';
 
       // Check if the subject matches a predefined subject in reference data; otherwise leave as undefined (null in DB)
