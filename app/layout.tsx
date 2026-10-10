@@ -17,6 +17,13 @@ export const metadata: Metadata = {
   title: "Vidyaaraa — VTU Engineering Resources, Calculators & AI Copilot",
   description: "Vidyaaraa brings college notes, previous-year papers, SGPA and CGPA calculators, study tools and placement resources together in one place for VTU and engineering students.",
   keywords: "Vidyaaraa, VTU, SGPA, CGPA, engineering, notes, previous year papers, PYQ, calculator, study planner, placement prep, college resources, Vidyaaraa AI",
+  icons: {
+    icon: [
+      { url: "/icon.png", type: "image/png" },
+      { url: "/favicon.ico" },
+    ],
+    apple: "/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
