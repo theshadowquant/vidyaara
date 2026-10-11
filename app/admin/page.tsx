@@ -30,6 +30,11 @@ import {
   Users,
   Eye,
   UserCheck,
+  Globe,
+  Activity,
+  Edit3,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { branches, subjects, isBranchMatch, formatBranchName } from '@/data/universities';
 import { fetchResources, createResource, deleteResource } from '@/lib/db/resources';
@@ -42,6 +47,8 @@ import {
 import { fetchFeedbacks, deleteFeedback, Feedback } from '@/lib/db/feedbacks';
 import {
   fetchResourceAccessLogs,
+  fetchVisitorStats,
+  updateVisitorCount,
   deleteResourceAccessLog,
   ResourceAccessLog,
 } from '@/lib/db/access-logs';
@@ -67,6 +74,12 @@ export default function AdminPage() {
   const [requestsList, setRequestsList] = useState<NoteRequest[]>([]);
   const [feedbackList, setFeedbackList] = useState<Feedback[]>([]);
   const [accessLogsList, setAccessLogsList] = useState<ResourceAccessLog[]>([]);
+  const [totalVisits, setTotalVisits] = useState<number>(48);
+  const [uniqueStudents, setUniqueStudents] = useState<number>(0);
+  const [tableExists, setTableExists] = useState<boolean>(true);
+  const [isEditingCount, setIsEditingCount] = useState<boolean>(false);
+  const [editCountValue, setEditCountValue] = useState<string>('48');
+  const [copiedSql, setCopiedSql] = useState<boolean>(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
 
   // Visitor Access Logs Filters
@@ -136,20 +149,34 @@ export default function AdminPage() {
   const loadAllData = async () => {
     setIsLoadingData(true);
     try {
-      const [res, reqs, fbs, logs] = await Promise.all([
+      const [res, reqs, fbs, stats] = await Promise.all([
         fetchResources(),
         fetchNoteRequests(),
         fetchFeedbacks(),
-        fetchResourceAccessLogs(),
+        fetchVisitorStats(),
       ]);
       setResourcesList(res);
       setRequestsList(reqs);
       setFeedbackList(fbs);
-      setAccessLogsList(logs);
+      setAccessLogsList(stats.logs);
+      setTotalVisits(stats.totalVisits);
+      setUniqueStudents(stats.uniqueStudents);
+      setTableExists(stats.tableExists);
+      setEditCountValue(String(stats.totalVisits));
     } catch (err) {
       console.error('Error loading admin data:', err);
     } finally {
       setIsLoadingData(false);
+    }
+  };
+
+  const handleSaveCount = async () => {
+    const num = parseInt(editCountValue, 10);
+    if (isNaN(num) || num < 0) return;
+    const ok = await updateVisitorCount(num);
+    if (ok) {
+      setTotalVisits(num);
+      setIsEditingCount(false);
     }
   };
 
@@ -1356,16 +1383,16 @@ export default function AdminPage() {
 
         {/* ======================= TAB: VISITOR ACCESS LOGS ======================= */}
         {activeTab === 'visitors' && (
-          <div className="space-y-4">
-            {/* Header & Stats Banner */}
+          <div className="space-y-5">
+            {/* Header & Controls Banner */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
               <div>
-                <h2 className="text-sm font-bold text-[var(--text-1)] flex items-center gap-2">
-                  <Users size={17} className="text-[var(--accent)]" />
-                  <span>Student Visitor & Resource Access Logs</span>
+                <h2 className="text-base font-extrabold text-[var(--text-1)] flex items-center gap-2">
+                  <Users size={18} className="text-[var(--accent)]" />
+                  <span>Platform Visitors & Student Access Logs</span>
                 </h2>
                 <p className="text-xs text-[var(--text-3)]">
-                  Captured student Name and USN entries every time study resources or PDFs are opened.
+                  Live site-wide visitor count alongside dedicated student access logs.
                 </p>
               </div>
 
@@ -1382,38 +1409,170 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Quick Metrics Bar */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="p-3.5 rounded-xl border border-[var(--bd)] bg-[var(--bg-raised)] space-y-1">
-                <span className="text-[10px] uppercase font-bold text-[var(--text-3)] flex items-center gap-1.5">
-                  <Eye size={13} className="text-[var(--accent)]" />
-                  <span>Total Resource Views / Downloads</span>
+            {/* Quick Metrics Bar (Visitors Count + Unique Students + Resource Views) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {/* Total Website Visitors Count */}
+              <div className="p-4 rounded-xl border border-[var(--bd)] bg-[var(--bg-raised)] space-y-2 relative">
+                <div className="flex items-center justify-between text-[10px] uppercase font-bold text-[var(--text-3)]">
+                  <span className="flex items-center gap-1.5">
+                    <Globe size={13} className="text-[var(--accent)]" />
+                    <span>Total Website Visitors</span>
+                  </span>
+                  <button
+                    onClick={() => setIsEditingCount(!isEditingCount)}
+                    className="text-[10px] text-[var(--text-3)] hover:text-[var(--accent)] flex items-center gap-1 font-mono transition-colors"
+                    title="Adjust or add yesterday's traffic count"
+                  >
+                    <Edit3 size={11} />
+                    <span>{isEditingCount ? 'Cancel' : 'Adjust'}</span>
+                  </button>
+                </div>
+
+                {isEditingCount ? (
+                  <div className="flex items-center gap-1.5 pt-1">
+                    <input
+                      type="number"
+                      value={editCountValue}
+                      onChange={(e) => setEditCountValue(e.target.value)}
+                      className="w-24 px-2 py-1 text-xs bg-[var(--bg-overlay)] border border-[var(--bd)] rounded-lg font-bold font-mono"
+                      min={0}
+                    />
+                    <button
+                      onClick={handleSaveCount}
+                      className="btn btn-primary btn-sm px-2.5 py-1 text-[11px] font-bold"
+                    >
+                      Save
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-baseline gap-2">
+                    <p className="text-3xl font-extrabold text-[var(--accent)]">{totalVisits}</p>
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400 bg-emerald-950/40 border border-emerald-500/30 px-1.5 py-0.5 rounded-full font-mono">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                      Active
+                    </span>
+                  </div>
+                )}
+                <span className="text-[10px] text-[var(--text-3)] block">
+                  All page views & site visits recorded
                 </span>
-                <p className="text-2xl font-extrabold text-[var(--accent)]">{totalViewsCount}</p>
-                <span className="text-[10px] text-[var(--text-3)]">Total PDF access pop-up submissions</span>
               </div>
 
-              <div className="p-3.5 rounded-xl border border-[var(--bd)] bg-[var(--bg-raised)] space-y-1">
+              {/* Unique Verified Students (USNs) */}
+              <div className="p-4 rounded-xl border border-[var(--bd)] bg-[var(--bg-raised)] space-y-2">
                 <span className="text-[10px] uppercase font-bold text-[var(--text-3)] flex items-center gap-1.5">
                   <UserCheck size={13} className="text-emerald-400" />
-                  <span>Unique Verified Students (USNs)</span>
+                  <span>Unique Students (USNs)</span>
                 </span>
-                <p className="text-2xl font-extrabold text-emerald-400">{uniqueUsnsCount}</p>
-                <span className="text-[10px] text-[var(--text-3)]">Distinct VTU student USNs recorded</span>
+                <p className="text-3xl font-extrabold text-emerald-400">{uniqueStudents || uniqueUsnsCount}</p>
+                <span className="text-[10px] text-[var(--text-3)] block">Distinct VTU student USNs</span>
               </div>
 
-              <div className="p-3.5 rounded-xl border border-[var(--bd)] bg-[var(--bg-raised)] space-y-1">
+              {/* PDF Views / Document Accesses */}
+              <div className="p-4 rounded-xl border border-[var(--bd)] bg-[var(--bg-raised)] space-y-2">
+                <span className="text-[10px] uppercase font-bold text-[var(--text-3)] flex items-center gap-1.5">
+                  <Eye size={13} className="text-cyan-400" />
+                  <span>PDF Views / Opens</span>
+                </span>
+                <p className="text-3xl font-extrabold text-cyan-400">{totalViewsCount}</p>
+                <span className="text-[10px] text-[var(--text-3)] block">Study notes & PYQ opens</span>
+              </div>
+
+              {/* Latest Access Event */}
+              <div className="p-4 rounded-xl border border-[var(--bd)] bg-[var(--bg-raised)] space-y-2">
                 <span className="text-[10px] uppercase font-bold text-[var(--text-3)] flex items-center gap-1.5">
                   <Clock size={13} className="text-amber-400" />
-                  <span>Latest Access Event</span>
+                  <span>Latest Visitor</span>
                 </span>
                 <p className="text-sm font-bold text-[var(--text-1)] truncate mt-1">
                   {accessLogsList[0] ? accessLogsList[0].studentName : 'None yet'}
                 </p>
-                <span className="text-[10px] text-[var(--text-3)] font-mono">
-                  {accessLogsList[0] ? `${accessLogsList[0].usn} • ${accessLogsList[0].accessedAt}` : 'Awaiting first visitor'}
+                <span className="text-[10px] text-[var(--text-3)] font-mono block truncate">
+                  {accessLogsList[0] ? `${accessLogsList[0].usn} • ${accessLogsList[0].accessedAt}` : 'Awaiting visits'}
                 </span>
               </div>
+            </div>
+
+            {/* Supabase Schema Setup Notice (if table not created yet) */}
+            {!tableExists && (
+              <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 text-xs space-y-2.5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle size={16} className="text-amber-400 shrink-0" />
+                    <span className="font-bold text-[var(--text-1)]">
+                      Supabase Cloud Sync Setup Required
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const sql = `-- Run in Supabase SQL Editor:
+CREATE TABLE IF NOT EXISTS public.site_stats (
+  id TEXT PRIMARY KEY,
+  count BIGINT NOT NULL DEFAULT 0,
+  "updatedAt" TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS public.visitor_logs (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  usn TEXT NOT NULL,
+  action TEXT NOT NULL DEFAULT 'Viewed Resource',
+  details TEXT NOT NULL,
+  branch TEXT,
+  sem TEXT,
+  "createdAt" TEXT NOT NULL
+);
+
+ALTER TABLE public.site_stats ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.visitor_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public read site_stats" ON public.site_stats FOR SELECT USING (true);
+CREATE POLICY "Allow public insert site_stats" ON public.site_stats FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update site_stats" ON public.site_stats FOR UPDATE USING (true);
+
+CREATE POLICY "Allow public read visitor_logs" ON public.visitor_logs FOR SELECT USING (true);
+CREATE POLICY "Allow public insert visitor_logs" ON public.visitor_logs FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public delete visitor_logs" ON public.visitor_logs FOR DELETE USING (true);`;
+                      navigator.clipboard.writeText(sql);
+                      setCopiedSql(true);
+                      setTimeout(() => setCopiedSql(false), 2500);
+                    }}
+                    className="btn btn-primary btn-sm text-[11px] font-bold px-3 py-1 flex items-center gap-1.5 shrink-0"
+                  >
+                    {copiedSql ? (
+                      <>
+                        <Check size={12} />
+                        <span>Copied SQL!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={12} />
+                        <span>Copy Supabase SQL</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                <p className="text-[var(--text-2)] leading-relaxed">
+                  Your website is actively tracking visitors in server memory. To persist all visitor logs in your Supabase cloud database permanently, click <strong>&quot;Copy Supabase SQL&quot;</strong> and run it in your{' '}
+                  <a
+                    href="https://supabase.com/dashboard/project/rzttcilfxkccakrkfwgf/sql"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[var(--accent)] underline font-semibold"
+                  >
+                    Supabase SQL Editor
+                  </a>
+                  .
+                </p>
+              </div>
+            )}
+
+            {/* Separate Visitor Log Header */}
+            <div className="flex items-center justify-between pt-2">
+              <h3 className="text-sm font-bold text-[var(--text-1)] flex items-center gap-2">
+                <FileText size={15} className="text-[var(--accent)]" />
+                <span>Separate Visitor Access Log ({filteredAccessLogs.length})</span>
+              </h3>
             </div>
 
             {/* Search & Filter Bar */}

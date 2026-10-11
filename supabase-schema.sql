@@ -70,3 +70,49 @@ CREATE POLICY "Allow public delete note_requests" ON public.note_requests FOR DE
 CREATE POLICY "Allow public read feedbacks" ON public.feedbacks FOR SELECT USING (true);
 CREATE POLICY "Allow public insert feedbacks" ON public.feedbacks FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public delete feedbacks" ON public.feedbacks FOR DELETE USING (true);
+
+-- 4. Site Analytics & Global Visitor Counter
+CREATE TABLE IF NOT EXISTS public.site_stats (
+  id TEXT PRIMARY KEY,
+  count BIGINT NOT NULL DEFAULT 0,
+  "updatedAt" TEXT NOT NULL
+);
+
+-- 5. Student Visitor Access Logs
+CREATE TABLE IF NOT EXISTS public.visitor_logs (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  usn TEXT NOT NULL,
+  action TEXT NOT NULL DEFAULT 'Viewed Resource',
+  details TEXT NOT NULL,
+  branch TEXT,
+  sem TEXT,
+  "createdAt" TEXT NOT NULL
+);
+
+-- Enable Row Level Security
+ALTER TABLE public.site_stats ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.visitor_logs ENABLE ROW LEVEL SECURITY;
+
+-- Clean existing policies so this script can be re-run safely anytime
+DROP POLICY IF EXISTS "Allow public read site_stats" ON public.site_stats;
+DROP POLICY IF EXISTS "Allow public insert site_stats" ON public.site_stats;
+DROP POLICY IF EXISTS "Allow public update site_stats" ON public.site_stats;
+
+DROP POLICY IF EXISTS "Allow public read visitor_logs" ON public.visitor_logs;
+DROP POLICY IF EXISTS "Allow public insert visitor_logs" ON public.visitor_logs;
+DROP POLICY IF EXISTS "Allow public delete visitor_logs" ON public.visitor_logs;
+
+-- Policies for public client read/write
+CREATE POLICY "Allow public read site_stats" ON public.site_stats FOR SELECT USING (true);
+CREATE POLICY "Allow public insert site_stats" ON public.site_stats FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update site_stats" ON public.site_stats FOR UPDATE USING (true);
+
+CREATE POLICY "Allow public read visitor_logs" ON public.visitor_logs FOR SELECT USING (true);
+CREATE POLICY "Allow public insert visitor_logs" ON public.visitor_logs FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public delete visitor_logs" ON public.visitor_logs FOR DELETE USING (true);
+
+-- Initialize site visitor count baseline
+INSERT INTO public.site_stats (id, count, "updatedAt")
+VALUES ('total_visits', 1, NOW()::TEXT)
+ON CONFLICT (id) DO NOTHING;

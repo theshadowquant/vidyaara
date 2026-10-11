@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/ThemeProvider";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { VidyaaraaAiWidget } from "@/components/ai/VidyaaraaAiWidget";
+import { VisitorTracker } from "@/components/analytics/VisitorTracker";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta",
@@ -47,6 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body className="min-h-full flex flex-col bg-[var(--bg)] text-[var(--text-1)] transition-colors duration-200">
         <ThemeProvider>
+          <VisitorTracker />
           <Navbar />
           <main className="flex-grow pt-16" id="main-content">
             {children}

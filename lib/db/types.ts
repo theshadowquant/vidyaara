@@ -287,6 +287,57 @@ export interface Database {
         };
         Relationships: [];
       };
+      site_stats: {
+        Row: {
+          id: string;
+          count: number;
+          updatedAt: string;
+        };
+        Insert: {
+          id: string;
+          count?: number;
+          updatedAt?: string;
+        };
+        Update: {
+          id?: string;
+          count?: number;
+          updatedAt?: string;
+        };
+        Relationships: [];
+      };
+      visitor_logs: {
+        Row: {
+          id: string;
+          name: string;
+          usn: string;
+          action: string;
+          details: string;
+          branch: string | null;
+          sem: string | null;
+          createdAt: string;
+        };
+        Insert: {
+          id: string;
+          name: string;
+          usn: string;
+          action?: string;
+          details: string;
+          branch?: string | null;
+          sem?: string | null;
+          createdAt?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          usn?: string;
+          action?: string;
+          details?: string;
+          branch?: string | null;
+          sem?: string | null;
+          createdAt?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
