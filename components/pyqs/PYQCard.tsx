@@ -5,9 +5,36 @@ import type { PYQ } from '@/types';
 import { useState } from 'react';
 import { formatBranchName } from '@/data/universities';
 import { ResourceAccessModal } from '@/components/resources/ResourceAccessModal';
+import { getStoredStudentInfo, recordResourceAccess } from '@/lib/db/access-logs';
 
 export function PYQCard({ pyq }: { pyq: PYQ }) {
   const [showAccessModal, setShowAccessModal] = useState(false);
+
+  const handleOpenPaper = () => {
+    const student = getStoredStudentInfo();
+    if (student) {
+      // Already verified once! Open instantly and log in background
+      recordResourceAccess({
+        studentName: student.name,
+        usn: student.usn,
+        resourceId: pyq.id,
+        resourceTitle: `${pyq.subjectName} (${pyq.year} ${pyq.examType})`,
+        resourceType: 'question-paper',
+        branchId: pyq.branchId,
+        semester: pyq.semester,
+      }).catch(console.error);
+
+      if (pyq.url && pyq.url !== '#demo') {
+        window.open(pyq.url, '_blank', 'noopener,noreferrer');
+      } else {
+        alert('This is a demo paper. In production, your PDF link opens automatically!');
+      }
+      return;
+    }
+
+    // 1st time visitor only:
+    setShowAccessModal(true);
+  };
 
   return (
     <>
@@ -39,7 +66,7 @@ export function PYQCard({ pyq }: { pyq: PYQ }) {
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => setShowAccessModal(true)}
+            onClick={handleOpenPaper}
             className="btn btn-secondary btn-sm p-2 rounded-lg"
             title="Download PDF"
           >
@@ -47,7 +74,7 @@ export function PYQCard({ pyq }: { pyq: PYQ }) {
           </button>
           <button
             type="button"
-            onClick={() => setShowAccessModal(true)}
+            onClick={handleOpenPaper}
             className="btn btn-primary btn-sm flex items-center gap-1 text-xs font-semibold"
           >
             <span>Open</span>
@@ -56,20 +83,22 @@ export function PYQCard({ pyq }: { pyq: PYQ }) {
         </div>
       </div>
 
-      {/* Access Verification Modal */}
-      <ResourceAccessModal
-        isOpen={showAccessModal}
-        onClose={() => setShowAccessModal(false)}
-        item={{
-          id: pyq.id,
-          title: `${pyq.subjectName} (${pyq.year} ${pyq.examType})`,
-          url: pyq.url,
-          type: 'question-paper',
-          branchId: pyq.branchId,
-          semester: pyq.semester,
-          subjectName: pyq.subjectName,
-        }}
-      />
+      {/* Access Verification Modal (Only rendered when user has not yet verified) */}
+      {showAccessModal && (
+        <ResourceAccessModal
+          isOpen={showAccessModal}
+          onClose={() => setShowAccessModal(false)}
+          item={{
+            id: pyq.id,
+            title: `${pyq.subjectName} (${pyq.year} ${pyq.examType})`,
+            url: pyq.url,
+            type: 'question-paper',
+            branchId: pyq.branchId,
+            semester: pyq.semester,
+            subjectName: pyq.subjectName,
+          }}
+        />
+      )}
     </>
   );
 }

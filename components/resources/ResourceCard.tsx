@@ -5,6 +5,7 @@ import type { Resource } from '@/types';
 import { useState, useEffect } from 'react';
 import { formatBranchName } from '@/data/universities';
 import { ResourceAccessModal } from './ResourceAccessModal';
+import { getStoredStudentInfo, recordResourceAccess } from '@/lib/db/access-logs';
 
 export function ResourceCard({ resource }: { resource: Resource }) {
   const [saved, setSaved] = useState(false);
@@ -30,6 +31,32 @@ export function ResourceCard({ resource }: { resource: Resource }) {
       setSaved(true);
     }
     localStorage.setItem('cf_saved_resources', JSON.stringify(updated));
+  };
+
+  const handleOpenResource = () => {
+    const student = getStoredStudentInfo();
+    if (student) {
+      // Student already verified once! Zero prompts: open immediately & log
+      recordResourceAccess({
+        studentName: student.name,
+        usn: student.usn,
+        resourceId: resource.id,
+        resourceTitle: resource.title,
+        resourceType: resource.type,
+        branchId: resource.branchId,
+        semester: resource.semester,
+      }).catch(console.error);
+
+      if (resource.url && resource.url !== '#demo') {
+        window.open(resource.url, '_blank', 'noopener,noreferrer');
+      } else {
+        alert('This is a demo resource. In production, your Google Drive PDF link opens automatically!');
+      }
+      return;
+    }
+
+    // 1st time visitor only: prompt for Name & USN
+    setShowAccessModal(true);
   };
 
   const formattedType = resource.type.replace('-', ' ');
@@ -79,7 +106,7 @@ export function ResourceCard({ resource }: { resource: Resource }) {
 
           <button
             type="button"
-            onClick={() => setShowAccessModal(true)}
+            onClick={handleOpenResource}
             className="btn btn-primary btn-sm flex items-center gap-1 text-xs font-semibold shadow-sm hover:brightness-110"
           >
             <span>View Notes</span>
@@ -88,20 +115,22 @@ export function ResourceCard({ resource }: { resource: Resource }) {
         </div>
       </div>
 
-      {/* Access Verification Modal */}
-      <ResourceAccessModal
-        isOpen={showAccessModal}
-        onClose={() => setShowAccessModal(false)}
-        item={{
-          id: resource.id,
-          title: resource.title,
-          url: resource.url,
-          type: resource.type,
-          branchId: resource.branchId,
-          semester: resource.semester,
-          subjectName: resource.subjectName,
-        }}
-      />
+      {/* Access Verification Modal (Only rendered if user is not verified) */}
+      {showAccessModal && (
+        <ResourceAccessModal
+          isOpen={showAccessModal}
+          onClose={() => setShowAccessModal(false)}
+          item={{
+            id: resource.id,
+            title: resource.title,
+            url: resource.url,
+            type: resource.type,
+            branchId: resource.branchId,
+            semester: resource.semester,
+            subjectName: resource.subjectName,
+          }}
+        />
+      )}
     </>
   );
 }

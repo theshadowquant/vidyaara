@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useId } from 'react';
-import { X, Lock, ExternalLink, GraduationCap, CheckCircle2, User, Hash, Sparkles } from 'lucide-react';
-import { recordResourceAccess } from '@/lib/db/access-logs';
+import { X, ExternalLink, GraduationCap, User, Hash, CheckCircle, ShieldCheck } from 'lucide-react';
+import { recordResourceAccess, setStoredStudentInfo, getStoredStudentInfo } from '@/lib/db/access-logs';
 import { formatBranchName } from '@/data/universities';
 
 export interface ResourceAccessItem {
@@ -21,33 +21,33 @@ interface ResourceAccessModalProps {
   item: ResourceAccessItem | null;
 }
 
-const STORAGE_KEY_STUDENT = 'vidyaaraa_student_info';
-
 export function ResourceAccessModal({ isOpen, onClose, item }: ResourceAccessModalProps) {
   const [name, setName] = useState('');
   const [usn, setUsn] = useState('');
-  const [savedUser, setSavedUser] = useState<{ name: string; usn: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   const nameInputId = useId();
   const usnInputId = useId();
 
-  // Load remembered student details on mount
+  // Prevent background body scrolling when modal is open
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY_STUDENT);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed.name && parsed.usn) {
-          setName(parsed.name);
-          setUsn(parsed.usn);
-          setSavedUser(parsed);
-        }
+    if (!isOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isOpen]);
+
+  // If already stored, close immediately (safety check)
+  useEffect(() => {
+    if (isOpen) {
+      const existing = getStoredStudentInfo();
+      if (existing) {
+        setName(existing.name);
+        setUsn(existing.usn);
       }
-    } catch {
-      // Ignore
     }
   }, [isOpen]);
 
@@ -71,13 +71,10 @@ export function ResourceAccessModal({ isOpen, onClose, item }: ResourceAccessMod
     setErrorMessage('');
 
     try {
-      // Remember for next time
-      localStorage.setItem(
-        STORAGE_KEY_STUDENT,
-        JSON.stringify({ name: cleanName, usn: cleanUsn })
-      );
+      // 1. Permanently remember student info - Never prompt again!
+      setStoredStudentInfo(cleanName, cleanUsn);
 
-      // Record access in database
+      // 2. Record access in database for admin visitors counter
       await recordResourceAccess({
         studentName: cleanName,
         usn: cleanUsn,
@@ -88,40 +85,16 @@ export function ResourceAccessModal({ isOpen, onClose, item }: ResourceAccessMod
         semester: item.semester || null,
       });
 
-      // Open PDF / resource link
+      // 3. Open PDF / resource link
       if (item.url && item.url !== '#demo') {
         window.open(item.url, '_blank', 'noopener,noreferrer');
       } else {
-        alert('This is a demo resource. In production, your Google Drive PDF link opens automatically!');
+        alert('Verified! In production, your Google Drive PDF / resource link opens directly.');
       }
 
       onClose();
     } catch (err: any) {
-      console.error('Error recording access:', err);
-      // Still open link even if logging hits network issue
-      if (item.url && item.url !== '#demo') {
-        window.open(item.url, '_blank', 'noopener,noreferrer');
-      }
-      onClose();
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleQuickContinue = async () => {
-    if (!savedUser) return;
-    setIsSubmitting(true);
-    try {
-      await recordResourceAccess({
-        studentName: savedUser.name,
-        usn: savedUser.usn,
-        resourceId: item.id || null,
-        resourceTitle: item.title,
-        resourceType: item.type || 'notes',
-        branchId: item.branchId || null,
-        semester: item.semester || null,
-      });
-
+      console.error('Error in student access verification:', err);
       if (item.url && item.url !== '#demo') {
         window.open(item.url, '_blank', 'noopener,noreferrer');
       }
@@ -132,14 +105,29 @@ export function ResourceAccessModal({ isOpen, onClose, item }: ResourceAccessMod
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-md animate-in fade-in duration-200">
+    <div
+      className="fixed inset-0 flex items-center justify-center p-4 sm:p-6 overflow-y-auto"
+      style={{
+        zIndex: 99999,
+        backgroundColor: 'rgba(0, 0, 0, 0.78)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+      }}
+      role="dialog"
+      aria-modal="true"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div
-        className="card max-w-md w-full p-6 border-[var(--bd)] bg-[var(--bg-raised)] shadow-2xl space-y-5 relative rounded-2xl"
-        role="dialog"
-        aria-modal="true"
+        className="relative w-full max-w-md mx-auto my-auto rounded-2xl bg-[var(--bg-raised)] border border-[var(--bd)] p-6 shadow-2xl space-y-5 transition-all text-left"
+        style={{
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.08)',
+        }}
       >
         {/* Close Button */}
         <button
+          type="button"
           onClick={onClose}
           className="absolute top-4 right-4 p-1.5 rounded-lg text-[var(--text-3)] hover:text-[var(--text-1)] hover:bg-[var(--bg-overlay)] transition-colors"
           aria-label="Close modal"
@@ -147,22 +135,22 @@ export function ResourceAccessModal({ isOpen, onClose, item }: ResourceAccessMod
           <X size={16} />
         </button>
 
-        {/* Header Icon & Title */}
+        {/* Modal Header */}
         <div className="flex items-start gap-3.5 pr-6">
-          <div className="w-11 h-11 rounded-xl bg-[rgba(0,212,170,0.12)] border border-[rgba(0,212,170,0.3)] flex items-center justify-center text-[var(--accent)] shrink-0 shadow-sm">
-            <GraduationCap size={22} />
+          <div className="w-10 h-10 rounded-xl bg-[rgba(0,212,170,0.12)] border border-[rgba(0,212,170,0.3)] flex items-center justify-center text-[var(--accent)] shrink-0 shadow-sm">
+            <GraduationCap size={20} />
           </div>
-          <div>
+          <div className="space-y-0.5">
             <h2 className="text-base font-extrabold text-[var(--text-1)] tracking-tight">
-              Access Study Resource
+              One-Time Student Access
             </h2>
-            <p className="text-xs text-[var(--text-3)] leading-snug mt-0.5">
-              Enter your student details to view & download this material.
+            <p className="text-xs text-[var(--text-3)] leading-relaxed">
+              Quick 1-time verification to unlock and read this material.
             </p>
           </div>
         </div>
 
-        {/* Selected Resource Preview Card */}
+        {/* Document Preview Card */}
         <div className="p-3 rounded-xl border border-[var(--bd)] bg-[var(--bg-overlay)] space-y-1 text-xs">
           <div className="flex items-center gap-2">
             {item.semester && (
@@ -184,39 +172,14 @@ export function ResourceAccessModal({ isOpen, onClose, item }: ResourceAccessMod
           <p className="font-bold text-[var(--text-1)] line-clamp-1">{item.title}</p>
         </div>
 
-        {/* Quick Continue Button if already saved */}
-        {savedUser && (
-          <div className="p-3 rounded-xl border border-[rgba(0,212,170,0.25)] bg-[rgba(0,212,170,0.06)] flex items-center justify-between gap-3 text-xs">
-            <div className="space-y-0.5 min-w-0">
-              <span className="text-[10px] text-[var(--text-3)] block font-medium">
-                Welcome back,
-              </span>
-              <p className="font-bold text-[var(--accent)] truncate">
-                {savedUser.name} <span className="font-mono text-[11px] text-[var(--text-2)]">({savedUser.usn})</span>
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleQuickContinue}
-              disabled={isSubmitting}
-              className="btn btn-primary btn-sm text-[11px] font-bold px-3 py-1.5 shrink-0 flex items-center gap-1.5 shadow-sm"
-            >
-              <span>Instant Open</span>
-              <ExternalLink size={12} />
-            </button>
-          </div>
-        )}
+        {/* One-time guarantee info banner */}
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[rgba(0,212,170,0.06)] border border-[rgba(0,212,170,0.2)] text-[11px] text-[var(--accent)] font-medium">
+          <ShieldCheck size={14} className="shrink-0 text-[var(--accent)]" />
+          <span>You only fill this <strong>once</strong>. Next notes open instantly!</span>
+        </div>
 
-        {/* Input Form */}
+        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
-          {savedUser && (
-            <div className="flex items-center gap-2 text-[10px] text-[var(--text-3)] uppercase font-semibold">
-              <span className="h-px bg-[var(--bd)] flex-1"></span>
-              <span>Or Update Details</span>
-              <span className="h-px bg-[var(--bd)] flex-1"></span>
-            </div>
-          )}
-
           <div>
             <label
               htmlFor={nameInputId}
@@ -245,7 +208,7 @@ export function ResourceAccessModal({ isOpen, onClose, item }: ResourceAccessMod
               className="block text-[11px] font-semibold text-[var(--text-2)] mb-1 flex items-center gap-1.5"
             >
               <Hash size={12} className="text-[var(--accent)]" />
-              <span>University Seat Number (USN) *</span>
+              <span>VTU USN *</span>
             </label>
             <input
               id={usnInputId}
@@ -278,7 +241,7 @@ export function ResourceAccessModal({ isOpen, onClose, item }: ResourceAccessMod
               disabled={isSubmitting}
               className="btn btn-primary btn-sm text-xs font-bold flex items-center gap-1.5 shadow-md hover:brightness-110 disabled:opacity-50"
             >
-              <span>{isSubmitting ? 'Opening...' : 'Unlock & View Document'}</span>
+              <span>{isSubmitting ? 'Verifying...' : 'Unlock & Open PDF'}</span>
               <ExternalLink size={13} />
             </button>
           </div>

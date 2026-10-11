@@ -195,3 +195,50 @@ export async function deleteResourceAccessLog(id: string): Promise<boolean> {
     return false;
   }
 }
+
+export const STUDENT_STORAGE_KEY = 'vidyaaraa_student_info';
+
+export interface StoredStudentInfo {
+  name: string;
+  usn: string;
+}
+
+/**
+ * Returns saved student details if they have already verified once.
+ */
+export function getStoredStudentInfo(): StoredStudentInfo | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(STUDENT_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.name === 'string' && typeof parsed.usn === 'string') {
+      const name = parsed.name.trim();
+      const usn = parsed.usn.trim().toUpperCase();
+      if (name.length > 0 && usn.length > 0) {
+        return { name, usn };
+      }
+    }
+  } catch {
+    // ignore parsing errors
+  }
+  return null;
+}
+
+/**
+ * Store student details in localStorage so they never get prompted again.
+ */
+export function setStoredStudentInfo(name: string, usn: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(
+      STUDENT_STORAGE_KEY,
+      JSON.stringify({
+        name: name.trim(),
+        usn: usn.trim().toUpperCase(),
+      })
+    );
+  } catch {
+    // ignore
+  }
+}
