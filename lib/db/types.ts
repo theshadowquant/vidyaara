@@ -251,6 +251,42 @@ export interface Database {
         };
         Relationships: [];
       };
+      resource_access_logs: {
+        Row: {
+          id: string;
+          student_name: string;
+          usn: string;
+          resource_id: string | null;
+          resource_title: string;
+          resource_type: string;
+          branch_id: string | null;
+          semester: number | null;
+          accessed_at: string;
+        };
+        Insert: {
+          id?: string;
+          student_name: string;
+          usn: string;
+          resource_id?: string | null;
+          resource_title: string;
+          resource_type?: string;
+          branch_id?: string | null;
+          semester?: number | null;
+          accessed_at?: string;
+        };
+        Update: {
+          id?: string;
+          student_name?: string;
+          usn?: string;
+          resource_id?: string | null;
+          resource_title?: string;
+          resource_type?: string;
+          branch_id?: string | null;
+          semester?: number | null;
+          accessed_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -270,10 +306,10 @@ export interface Database {
   };
 }
 
-// ── App-level re-exports matching existing types/index.ts ─────────────────
-export type DbResource    = Database['public']['Tables']['resources']['Row'];
-export type DbPYQ         = Database['public']['Tables']['pyqs']['Row'];
-export type DbNoteRequest = Database['public']['Tables']['note_requests']['Row'];
-export type DbFeedback    = Database['public']['Tables']['feedbacks']['Row'];
-export type DbBranch      = Database['public']['Tables']['branches']['Row'];
-export type DbSubject     = Database['public']['Tables']['subjects']['Row'];
+export type DbResource          = Database['public']['Tables']['resources']['Row'];
+export type DbPYQ               = Database['public']['Tables']['pyqs']['Row'];
+export type DbNoteRequest       = Database['public']['Tables']['note_requests']['Row'];
+export type DbFeedback          = Database['public']['Tables']['feedbacks']['Row'];
+export type DbBranch            = Database['public']['Tables']['branches']['Row'];
+export type DbSubject           = Database['public']['Tables']['subjects']['Row'];
+export type DbResourceAccessLog = Database['public']['Tables']['resource_access_logs']['Row'];
