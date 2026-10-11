@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { formatBranchName } from '@/data/universities';
 import { ResourceAccessModal } from '@/components/resources/ResourceAccessModal';
 import { getStoredStudentInfo, recordResourceAccess } from '@/lib/db/access-logs';
+import { formatGoogleDriveUrl } from '@/lib/utils';
 
 export function PYQCard({ pyq }: { pyq: PYQ }) {
   const [showAccessModal, setShowAccessModal] = useState(false);
@@ -25,7 +26,8 @@ export function PYQCard({ pyq }: { pyq: PYQ }) {
       }).catch(console.error);
 
       if (pyq.url && pyq.url !== '#demo') {
-        window.open(pyq.url, '_blank', 'noopener,noreferrer');
+        const targetUrl = formatGoogleDriveUrl(pyq.url);
+        window.open(targetUrl, '_blank', 'noopener,noreferrer');
       } else {
         alert('This is a demo paper. In production, your PDF link opens automatically!');
       }

@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { formatBranchName } from '@/data/universities';
 import { ResourceAccessModal } from './ResourceAccessModal';
 import { getStoredStudentInfo, recordResourceAccess } from '@/lib/db/access-logs';
+import { formatGoogleDriveUrl } from '@/lib/utils';
 
 export function ResourceCard({ resource }: { resource: Resource }) {
   const [saved, setSaved] = useState(false);
@@ -48,7 +49,8 @@ export function ResourceCard({ resource }: { resource: Resource }) {
       }).catch(console.error);
 
       if (resource.url && resource.url !== '#demo') {
-        window.open(resource.url, '_blank', 'noopener,noreferrer');
+        const targetUrl = formatGoogleDriveUrl(resource.url);
+        window.open(targetUrl, '_blank', 'noopener,noreferrer');
       } else {
         alert('This is a demo resource. In production, your Google Drive PDF link opens automatically!');
       }

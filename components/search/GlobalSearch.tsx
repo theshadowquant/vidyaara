@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Search, X, Calculator, FileText, BookOpen, Briefcase, Wrench } from 'lucide-react';
 import { searchAll } from '@/data/search';
 import type { SearchResult } from '@/types';
+import { formatGoogleDriveUrl } from '@/lib/utils';
 
 const typeIcons = {
   tool: <Wrench size={14} />,
@@ -42,7 +43,8 @@ export function GlobalSearch({ onClose }: { onClose: () => void }) {
   const navigate = (href: string) => {
     onClose();
     if (href.startsWith('http')) {
-      window.open(href, '_blank', 'noopener,noreferrer');
+      const targetUrl = formatGoogleDriveUrl(href);
+      window.open(targetUrl, '_blank', 'noopener,noreferrer');
     } else {
       router.push(href);
     }

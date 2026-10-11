@@ -4,6 +4,7 @@ import React, { useState, useEffect, useId } from 'react';
 import { X, ExternalLink, GraduationCap, User, Hash, CheckCircle, ShieldCheck } from 'lucide-react';
 import { recordResourceAccess, setStoredStudentInfo, getStoredStudentInfo } from '@/lib/db/access-logs';
 import { formatBranchName } from '@/data/universities';
+import { formatGoogleDriveUrl } from '@/lib/utils';
 
 export interface ResourceAccessItem {
   id?: string;
@@ -87,7 +88,8 @@ export function ResourceAccessModal({ isOpen, onClose, item }: ResourceAccessMod
 
       // 3. Open PDF / resource link
       if (item.url && item.url !== '#demo') {
-        window.open(item.url, '_blank', 'noopener,noreferrer');
+        const targetUrl = formatGoogleDriveUrl(item.url);
+        window.open(targetUrl, '_blank', 'noopener,noreferrer');
       } else {
         alert('Verified! In production, your Google Drive PDF / resource link opens directly.');
       }
@@ -96,7 +98,8 @@ export function ResourceAccessModal({ isOpen, onClose, item }: ResourceAccessMod
     } catch (err: any) {
       console.error('Error in student access verification:', err);
       if (item.url && item.url !== '#demo') {
-        window.open(item.url, '_blank', 'noopener,noreferrer');
+        const targetUrl = formatGoogleDriveUrl(item.url);
+        window.open(targetUrl, '_blank', 'noopener,noreferrer');
       }
       onClose();
     } finally {
