@@ -10,8 +10,8 @@ import type { Resource } from '@/types';
 
 export default function ResourcesPage() {
   const [allResources, setAllResources] = useState<Resource[]>(staticResources);
-  const [selectedBranch, setSelectedBranch] = useState('cse-allied');
-  const [selectedSem, setSelectedSem] = useState<number>(4);
+  const [selectedBranch, setSelectedBranch] = useState('all');
+  const [selectedSem, setSelectedSem] = useState<number>(0);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
@@ -121,12 +121,12 @@ export default function ResourcesPage() {
               <label className="label text-[11px] font-semibold text-[var(--text-2)] mb-1 block">
                 Search Notes
               </label>
-              <div className="relative">
-                <Search className="absolute left-3 top-2.5 text-[var(--text-3)]" size={15} />
+              <div className="relative flex items-center">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-3)] pointer-events-none" size={15} />
                 <input
                   type="text"
                   placeholder="Search notes, topics, subjects, modules..."
-                  className="input pl-9 text-xs w-full"
+                  className="input pl-10 text-xs w-full"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
