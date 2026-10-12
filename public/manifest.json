@@ -3,11 +3,14 @@
   "short_name": "Vidyaaraa",
   "description": "VTU Engineering Notes, Previous Year Question Papers, Calculators & AI Copilot",
   "start_url": "/",
+  "scope": "/",
   "id": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
   "background_color": "#0A0F1D",
   "theme_color": "#00D4AA",
+  "lang": "en",
+  "dir": "ltr",
   "categories": ["education", "books", "productivity"],
   "icons": [
     {
@@ -35,27 +38,37 @@
       "purpose": "maskable"
     }
   ],
+  "screenshots": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Vidyaaraa Home"
+    }
+  ],
   "shortcuts": [
     {
       "name": "Resource Library",
       "short_name": "Resources",
       "description": "Find VTU branch notes and syllabus",
       "url": "/resources",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Question Papers",
       "short_name": "PYQs",
       "description": "Browse previous year question papers",
       "url": "/pyqs",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Vidyaaraa AI",
       "short_name": "AI Copilot",
       "description": "Ask engineering doubt solver",
       "url": "/ai",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
     }
-  ]
+  ],
+  "prefer_related_applications": false
 }

@@ -6,6 +6,7 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { VidyaaraaAiWidget } from "@/components/ai/VidyaaraaAiWidget";
 import { VisitorTracker } from "@/components/analytics/VisitorTracker";
+import { ServiceWorkerRegistrar } from "@/components/pwa/ServiceWorkerRegistrar";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta",
@@ -25,6 +26,8 @@ export const metadata: Metadata = {
   description: "Vidyaaraa brings college notes, previous-year papers, SGPA and CGPA calculators, study tools and placement resources together in one place for VTU and engineering students.",
   keywords: "Vidyaaraa, VTU, SGPA, CGPA, engineering, notes, previous year papers, PYQ, calculator, study planner, placement prep, college resources, Vidyaaraa AI",
   manifest: "/manifest.json",
+  applicationName: "Vidyaaraa",
+  formatDetection: { telephone: false },
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -48,6 +51,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body className="min-h-full flex flex-col bg-[var(--bg)] text-[var(--text-1)] transition-colors duration-200">
         <ThemeProvider>
+          <ServiceWorkerRegistrar />
           <VisitorTracker />
           <Navbar />
           <main className="flex-grow pt-16" id="main-content">
