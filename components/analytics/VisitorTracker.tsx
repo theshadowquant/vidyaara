@@ -30,6 +30,7 @@ export function VisitorTracker() {
         path: pathname,
         studentName: student?.name || null,
         usn: student?.usn || null,
+        email: student?.email || null,
       }),
     }).catch(() => {
       // Non-critical, ignore network issues

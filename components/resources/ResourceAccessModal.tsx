@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useId } from 'react';
-import { X, ExternalLink, GraduationCap, User, Hash, CheckCircle, ShieldCheck } from 'lucide-react';
+import { X, ExternalLink, GraduationCap, User, Hash, Mail, ShieldCheck } from 'lucide-react';
 import { recordResourceAccess, setStoredStudentInfo, getStoredStudentInfo } from '@/lib/db/access-logs';
 import { formatBranchName } from '@/data/universities';
 import { formatGoogleDriveUrl } from '@/lib/utils';
@@ -24,11 +24,13 @@ interface ResourceAccessModalProps {
 
 export function ResourceAccessModal({ isOpen, onClose, item }: ResourceAccessModalProps) {
   const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
   const [usn, setUsn] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
   const nameInputId = useId();
+  const emailInputId = useId();
   const usnInputId = useId();
 
   // Prevent background body scrolling when modal is open
@@ -48,6 +50,7 @@ export function ResourceAccessModal({ isOpen, onClose, item }: ResourceAccessMod
       if (existing) {
         setName(existing.name);
         setUsn(existing.usn);
+        if (existing.email) setEmail(existing.email);
       }
     }
   }, [isOpen]);
@@ -57,10 +60,15 @@ export function ResourceAccessModal({ isOpen, onClose, item }: ResourceAccessMod
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanName = name.trim();
+    const cleanEmail = email.trim().toLowerCase();
     const cleanUsn = usn.trim().toUpperCase();
 
     if (!cleanName) {
       setErrorMessage('Please enter your full name');
+      return;
+    }
+    if (!cleanEmail || !cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+      setErrorMessage('Please enter a valid email address');
       return;
     }
     if (!cleanUsn || cleanUsn.length < 5) {
@@ -73,11 +81,12 @@ export function ResourceAccessModal({ isOpen, onClose, item }: ResourceAccessMod
 
     try {
       // 1. Permanently remember student info - Never prompt again!
-      setStoredStudentInfo(cleanName, cleanUsn);
+      setStoredStudentInfo(cleanName, cleanUsn, cleanEmail);
 
-      // 2. Record access in database for admin visitors counter
+      // 2. Record access in database for admin visitors counter & logs
       await recordResourceAccess({
         studentName: cleanName,
+        email: cleanEmail,
         usn: cleanUsn,
         resourceId: item.id || null,
         resourceTitle: item.title,
@@ -199,6 +208,28 @@ export function ResourceAccessModal({ isOpen, onClose, item }: ResourceAccessMod
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
+                setErrorMessage('');
+              }}
+              className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--bd)] rounded-xl text-xs text-[var(--text-1)] focus:outline-none focus:border-[var(--accent)] transition-colors"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor={emailInputId}
+              className="block text-[11px] font-semibold text-[var(--text-2)] mb-1 flex items-center gap-1.5"
+            >
+              <Mail size={12} className="text-[var(--accent)]" />
+              <span>Email Address *</span>
+            </label>
+            <input
+              id={emailInputId}
+              type="email"
+              required
+              placeholder="e.g. rahul@gmail.com"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
                 setErrorMessage('');
               }}
               className="w-full px-3 py-2 bg-[var(--bg)] border border-[var(--bd)] rounded-xl text-xs text-[var(--text-1)] focus:outline-none focus:border-[var(--accent)] transition-colors"

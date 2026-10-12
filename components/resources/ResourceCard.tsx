@@ -41,6 +41,7 @@ export function ResourceCard({ resource }: { resource: Resource }) {
       recordResourceAccess({
         studentName: student.name,
         usn: student.usn,
+        email: student.email,
         resourceId: resource.id,
         resourceTitle: resource.title,
         resourceType: resource.type,

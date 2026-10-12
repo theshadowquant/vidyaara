@@ -18,6 +18,7 @@ export function PYQCard({ pyq }: { pyq: PYQ }) {
       recordResourceAccess({
         studentName: student.name,
         usn: student.usn,
+        email: student.email,
         resourceId: pyq.id,
         resourceTitle: `${pyq.subjectName} (${pyq.year} ${pyq.examType})`,
         resourceType: 'question-paper',

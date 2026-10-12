@@ -256,6 +256,7 @@ export interface Database {
           id: string;
           student_name: string;
           usn: string;
+          email?: string | null;
           resource_id: string | null;
           resource_title: string;
           resource_type: string;
@@ -267,6 +268,7 @@ export interface Database {
           id?: string;
           student_name: string;
           usn: string;
+          email?: string | null;
           resource_id?: string | null;
           resource_title: string;
           resource_type?: string;
@@ -278,6 +280,7 @@ export interface Database {
           id?: string;
           student_name?: string;
           usn?: string;
+          email?: string | null;
           resource_id?: string | null;
           resource_title?: string;
           resource_type?: string;
@@ -310,6 +313,7 @@ export interface Database {
           id: string;
           name: string;
           usn: string;
+          email: string | null;
           action: string;
           details: string;
           branch: string | null;
@@ -320,6 +324,7 @@ export interface Database {
           id: string;
           name: string;
           usn: string;
+          email?: string | null;
           action?: string;
           details: string;
           branch?: string | null;
@@ -330,6 +335,7 @@ export interface Database {
           id?: string;
           name?: string;
           usn?: string;
+          email?: string | null;
           action?: string;
           details?: string;
           branch?: string | null;

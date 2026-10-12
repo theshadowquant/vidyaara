@@ -15,12 +15,16 @@ CREATE TABLE IF NOT EXISTS public.visitor_logs (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   usn TEXT NOT NULL,
+  email TEXT,
   action TEXT NOT NULL DEFAULT 'Viewed Resource',
   details TEXT NOT NULL,
   branch TEXT,
   sem TEXT,
   "createdAt" TEXT NOT NULL
 );
+
+-- Ensure email column exists if table already created
+ALTER TABLE public.visitor_logs ADD COLUMN IF NOT EXISTS email TEXT;
 
 -- Enable Row Level Security
 ALTER TABLE public.site_stats ENABLE ROW LEVEL SECURITY;

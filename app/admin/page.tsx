@@ -409,6 +409,7 @@ export default function AdminPage() {
       !q ||
       log.studentName.toLowerCase().includes(q) ||
       log.usn.toLowerCase().includes(q) ||
+      (log.email && log.email.toLowerCase().includes(q)) ||
       log.resourceTitle.toLowerCase().includes(q);
     const matchBranch = visitorBranch === 'all' || (log.branchId && isBranchMatch(log.branchId, visitorBranch));
     return matchQuery && matchBranch;
@@ -1506,6 +1507,8 @@ export default function AdminPage() {
                   <button
                     onClick={() => {
                       const sql = `-- Run in Supabase SQL Editor:
+ALTER TABLE public.visitor_logs ADD COLUMN IF NOT EXISTS email TEXT;
+
 CREATE TABLE IF NOT EXISTS public.site_stats (
   id TEXT PRIMARY KEY,
   count BIGINT NOT NULL DEFAULT 0,
@@ -1516,6 +1519,7 @@ CREATE TABLE IF NOT EXISTS public.visitor_logs (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   usn TEXT NOT NULL,
+  email TEXT,
   action TEXT NOT NULL DEFAULT 'Viewed Resource',
   details TEXT NOT NULL,
   branch TEXT,
@@ -1581,7 +1585,7 @@ CREATE POLICY "Allow public delete visitor_logs" ON public.visitor_logs FOR DELE
                 <Search size={14} className="absolute left-3 top-2.5 text-[var(--text-3)]" />
                 <input
                   type="text"
-                  placeholder="Search by Student Name, USN, or Resource Title..."
+                  placeholder="Search by Student Name, USN, Email, or Resource Title..."
                   value={visitorSearch}
                   onChange={(e) => setVisitorSearch(e.target.value)}
                   className="w-full pl-9 pr-3 py-1.5 bg-[var(--bg-overlay)] border border-[var(--bd)] rounded-xl text-xs text-[var(--text-1)] focus:outline-none focus:border-[var(--accent)]"
@@ -1623,6 +1627,7 @@ CREATE POLICY "Allow public delete visitor_logs" ON public.visitor_logs FOR DELE
                   <thead className="bg-[var(--bg-overlay)] border-b border-[var(--bd)] text-[var(--text-3)] uppercase text-[10px] font-bold tracking-wider">
                     <tr>
                       <th className="py-3 px-4">Student Name</th>
+                      <th className="py-3 px-4">Email</th>
                       <th className="py-3 px-4">USN</th>
                       <th className="py-3 px-4">Resource Title</th>
                       <th className="py-3 px-4">Branch / Sem</th>
@@ -1640,6 +1645,15 @@ CREATE POLICY "Allow public delete visitor_logs" ON public.visitor_logs FOR DELE
                             </span>
                             <span>{log.studentName}</span>
                           </div>
+                        </td>
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          {log.email ? (
+                            <span className="font-mono text-[11px] text-[var(--text-2)] hover:text-[var(--text-1)] select-all">
+                              {log.email}
+                            </span>
+                          ) : (
+                            <span className="text-[var(--text-3)] text-[11px]">—</span>
+                          )}
                         </td>
                         <td className="py-3 px-4 whitespace-nowrap">
                           <span className="inline-block px-2 py-0.5 rounded-md font-mono text-[11px] font-bold bg-[rgba(0,212,170,0.08)] border border-[rgba(0,212,170,0.3)] text-[var(--accent)]">
@@ -1674,9 +1688,9 @@ CREATE POLICY "Allow public delete visitor_logs" ON public.visitor_logs FOR DELE
                     ))}
                     {filteredAccessLogs.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="py-10 text-center text-xs text-[var(--text-3)]">
+                        <td colSpan={7} className="py-10 text-center text-xs text-[var(--text-3)]">
                           {accessLogsList.length === 0
-                            ? 'No visitor access records logged yet. As students click to view notes or PYQs, their Name and USN will appear here in real-time.'
+                            ? 'No visitor access records logged yet. As students click to view notes or PYQs, their Name, Email, and USN will appear here in real-time.'
                             : 'No access logs match the current search filters.'}
                         </td>
                       </tr>

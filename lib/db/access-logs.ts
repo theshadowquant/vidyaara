@@ -4,6 +4,7 @@ export interface ResourceAccessLog {
   id: string;
   studentName: string;
   usn: string;
+  email?: string | null;
   resourceId?: string | null;
   resourceTitle: string;
   resourceType: string;
@@ -26,6 +27,7 @@ export const STUDENT_STORAGE_KEY = 'vidyaaraa_student_info';
 export interface StoredStudentInfo {
   name: string;
   usn: string;
+  email?: string;
 }
 
 function getLocalLogs(): ResourceAccessLog[] {
@@ -61,8 +63,9 @@ export function getStoredStudentInfo(): StoredStudentInfo | null {
     if (parsed && typeof parsed.name === 'string' && typeof parsed.usn === 'string') {
       const name = parsed.name.trim();
       const usn = parsed.usn.trim().toUpperCase();
+      const email = typeof parsed.email === 'string' ? parsed.email.trim().toLowerCase() : undefined;
       if (name.length > 0 && usn.length > 0) {
-        return { name, usn };
+        return { name, usn, email };
       }
     }
   } catch {
@@ -74,7 +77,7 @@ export function getStoredStudentInfo(): StoredStudentInfo | null {
 /**
  * Store student details in localStorage so they never get prompted again.
  */
-export function setStoredStudentInfo(name: string, usn: string): void {
+export function setStoredStudentInfo(name: string, usn: string, email?: string): void {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(
@@ -82,6 +85,7 @@ export function setStoredStudentInfo(name: string, usn: string): void {
       JSON.stringify({
         name: name.trim(),
         usn: usn.trim().toUpperCase(),
+        email: email ? email.trim().toLowerCase() : undefined,
       })
     );
   } catch {
@@ -90,11 +94,12 @@ export function setStoredStudentInfo(name: string, usn: string): void {
 }
 
 /**
- * Record a student access event (Name + USN + Resource info)
+ * Record a student access event (Name + USN + Email + Resource info)
  */
 export async function recordResourceAccess(data: {
   studentName: string;
   usn: string;
+  email?: string | null;
   resourceId?: string | null;
   resourceTitle: string;
   resourceType?: string;
@@ -103,11 +108,13 @@ export async function recordResourceAccess(data: {
 }): Promise<ResourceAccessLog | null> {
   const cleanName = data.studentName.trim();
   const cleanUsn = data.usn.trim().toUpperCase();
+  const cleanEmail = data.email ? data.email.trim().toLowerCase() : null;
 
   const newLog: ResourceAccessLog = {
     id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
     studentName: cleanName,
     usn: cleanUsn,
+    email: cleanEmail,
     resourceId: data.resourceId || null,
     resourceTitle: data.resourceTitle.trim(),
     resourceType: data.resourceType || 'notes',
@@ -133,6 +140,7 @@ export async function recordResourceAccess(data: {
         type: 'resource_access',
         studentName: cleanName,
         usn: cleanUsn,
+        email: cleanEmail,
         resourceTitle: data.resourceTitle,
         action: data.resourceType === 'question-paper' ? 'Downloaded PYQ' : 'Viewed Notes',
         branch: data.branchId,
@@ -151,6 +159,7 @@ export async function recordResourceAccess(data: {
         id: newLog.id,
         name: cleanName,
         usn: cleanUsn,
+        email: cleanEmail,
         action: newLog.resourceType === 'question-paper' ? 'Downloaded PYQ' : 'Viewed Notes',
         details: data.resourceTitle.trim(),
         branch: data.branchId || null,
@@ -178,6 +187,7 @@ export async function fetchVisitorStats(): Promise<VisitorStatsResponse> {
           id: l.id || `log-${Math.random()}`,
           studentName: l.name || l.studentName || 'Student',
           usn: l.usn || 'N/A',
+          email: l.email || null,
           resourceTitle: l.details || l.resourceTitle || 'Resource',
           resourceType: l.action || 'notes',
           branchId: l.branch || l.branchId || null,

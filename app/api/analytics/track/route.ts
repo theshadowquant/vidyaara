@@ -6,6 +6,7 @@ interface InMemoryLog {
   id: string;
   name: string;
   usn: string;
+  email?: string | null;
   action: string;
   details: string;
   branch?: string | null;
@@ -19,7 +20,7 @@ const inMemoryLogs: InMemoryLog[] = [];
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { type, studentName, usn, resourceTitle, action, branch, semester } = body;
+    const { type, studentName, usn, email, resourceTitle, action, branch, semester } = body;
 
     let supabase;
     try {
@@ -64,6 +65,7 @@ export async function POST(req: Request) {
       inMemoryVisits += 1;
       const cleanName = (studentName || 'Anonymous Student').trim();
       const cleanUsn = (usn || 'VTU-GUEST').trim().toUpperCase();
+      const cleanEmail = email ? email.trim().toLowerCase() : null;
       const cleanTitle = (resourceTitle || 'Study Document').trim();
       const timestamp = new Date().toISOString();
 
@@ -71,6 +73,7 @@ export async function POST(req: Request) {
         id: `log-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
         name: cleanName,
         usn: cleanUsn,
+        email: cleanEmail,
         action: action || 'Viewed Resource',
         details: cleanTitle,
         branch: branch || null,
@@ -96,17 +99,24 @@ export async function POST(req: Request) {
               .eq('id', 'total_visits');
           }
 
-          // Insert into visitor_logs
-          await supabase.from('visitor_logs').insert({
+          // Insert into visitor_logs (try with email first, fallback without email if column pending)
+          const insertPayload: any = {
             id: newLog.id,
             name: cleanName,
             usn: cleanUsn,
+            email: cleanEmail,
             action: newLog.action,
             details: cleanTitle,
             branch: branch || null,
             sem: semester ? String(semester) : null,
             createdAt: timestamp,
-          });
+          };
+
+          const insertRes = await supabase.from('visitor_logs').insert(insertPayload);
+          if (insertRes.error && insertRes.error.message.includes('email')) {
+            delete insertPayload.email;
+            await supabase.from('visitor_logs').insert(insertPayload);
+          }
         } catch (dbErr) {
           console.warn('visitor_logs insert db warning:', dbErr);
         }
