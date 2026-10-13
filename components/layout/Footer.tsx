@@ -14,6 +14,13 @@ const footerLinks = [
   { label: 'About', href: '/about' },
 ];
 
+const teamMembers = [
+  { name: 'Lekhan', href: 'https://www.linkedin.com/in/lekhan-v-t-988680312/?isSelfProfile=true' },
+  { name: 'Varun', href: 'https://www.linkedin.com/in/s-m-varun-7a6b4b3b0/' },
+  { name: 'Darshan', href: 'https://www.linkedin.com/in/darshan-mang-56110136a/' },
+  { name: 'Sujan', href: 'https://www.linkedin.com/in/sujan-r-v-6ba45531a/' },
+];
+
 export function Footer() {
   const pathname = usePathname();
   if (pathname === '/ai') {
@@ -172,23 +179,91 @@ export function Footer() {
           </div>
         </div>
 
-        {/* Bottom bar */}
+        {/* Team Credits & Bottom bar */}
         <div
           style={{
             borderTop: '1px solid var(--bd)',
-            paddingTop: '1.5rem',
+            paddingTop: '2rem',
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '1rem',
-            flexWrap: 'wrap',
+            textAlign: 'center',
+            gap: '0.45rem',
           }}
         >
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-3)' }}>
-            © {new Date().getFullYear()} Vidyaaraa. All rights reserved.
+          <p
+            style={{
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              color: 'var(--text-1)',
+              letterSpacing: '-0.01em',
+            }}
+          >
+            Developed by{' '}
+            <span
+              style={{
+                fontWeight: 700,
+                color: 'var(--accent)',
+              }}
+            >
+              Team SQuantrix
+            </span>
           </p>
-          <p style={{ fontSize: '0.8rem', color: 'var(--text-3)' }}>
-            Made with care for VTU students
+
+          <p
+            style={{
+              fontSize: '0.8rem',
+              fontWeight: 500,
+              color: 'var(--text-3)',
+            }}
+          >
+            Connect With Us For More Updates
+          </p>
+
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexWrap: 'wrap',
+              gap: '0.6rem',
+              fontSize: '0.825rem',
+              fontWeight: 600,
+              marginTop: '0.15rem',
+              marginBottom: '0.35rem',
+            }}
+          >
+            {teamMembers.map((member, index) => (
+              <span key={member.name} style={{ display: 'inline-flex', alignItems: 'center', gap: '0.6rem' }}>
+                <a
+                  href={member.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    color: 'var(--text-2)',
+                    textDecoration: 'none',
+                    transition: 'color 0.15s ease, text-decoration 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLElement).style.color = 'var(--accent)';
+                    (e.currentTarget as HTMLElement).style.textDecoration = 'underline';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.color = 'var(--text-2)';
+                    (e.currentTarget as HTMLElement).style.textDecoration = 'none';
+                  }}
+                >
+                  {member.name}
+                </a>
+                {index < teamMembers.length - 1 && (
+                  <span style={{ color: 'var(--text-3)', opacity: 0.5 }}>•</span>
+                )}
+              </span>
+            ))}
+          </div>
+
+          <p style={{ fontSize: '0.75rem', color: 'var(--text-3)', marginTop: '0.2rem' }}>
+            © {new Date().getFullYear()} Vidyaaraa. All rights reserved.
           </p>
         </div>
       </div>
