@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
-import { getStoredStudentInfo } from '@/lib/db/access-logs';
 
 export function VisitorTracker() {
   const pathname = usePathname();
@@ -19,8 +18,6 @@ export function VisitorTracker() {
     }
     lastTrackedPath.current = pathname;
 
-    const student = getStoredStudentInfo();
-
     // Send tracking beacon/fetch
     fetch('/api/analytics/track', {
       method: 'POST',
@@ -28,9 +25,6 @@ export function VisitorTracker() {
       body: JSON.stringify({
         type: 'pageview',
         path: pathname,
-        studentName: student?.name || null,
-        usn: student?.usn || null,
-        email: student?.email || null,
       }),
     }).catch(() => {
       // Non-critical, ignore network issues

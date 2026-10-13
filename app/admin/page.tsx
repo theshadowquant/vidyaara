@@ -45,18 +45,12 @@ import {
   NoteRequest,
 } from '@/lib/db/note-requests';
 import { fetchFeedbacks, deleteFeedback, Feedback } from '@/lib/db/feedbacks';
-import {
-  fetchResourceAccessLogs,
-  fetchVisitorStats,
-  updateVisitorCount,
-  deleteResourceAccessLog,
-  ResourceAccessLog,
-} from '@/lib/db/access-logs';
+import { fetchVisitorStats } from '@/lib/db/access-logs';
 import { adminSignIn, adminSignOut, isAdminAuthenticated } from '@/lib/db/admin';
 import { isSupabaseConfigured } from '@/lib/db/client';
 import { Resource, ResourceType } from '@/types';
 
-type AdminTab = 'overview' | 'resources' | 'visitors' | 'requests' | 'feedback' | 'ai';
+type AdminTab = 'overview' | 'resources' | 'requests' | 'feedback' | 'ai';
 
 export default function AdminPage() {
   // Auth state
@@ -73,18 +67,8 @@ export default function AdminPage() {
   const [resourcesList, setResourcesList] = useState<Resource[]>([]);
   const [requestsList, setRequestsList] = useState<NoteRequest[]>([]);
   const [feedbackList, setFeedbackList] = useState<Feedback[]>([]);
-  const [accessLogsList, setAccessLogsList] = useState<ResourceAccessLog[]>([]);
   const [totalVisits, setTotalVisits] = useState<number>(48);
-  const [uniqueStudents, setUniqueStudents] = useState<number>(0);
-  const [tableExists, setTableExists] = useState<boolean>(true);
-  const [isEditingCount, setIsEditingCount] = useState<boolean>(false);
-  const [editCountValue, setEditCountValue] = useState<string>('48');
-  const [copiedSql, setCopiedSql] = useState<boolean>(false);
   const [isLoadingData, setIsLoadingData] = useState(false);
-
-  // Visitor Access Logs Filters
-  const [visitorSearch, setVisitorSearch] = useState('');
-  const [visitorBranch, setVisitorBranch] = useState('all');
 
   // Resource Filter & Modal
   const [resourceSearch, setResourceSearch] = useState('');
@@ -158,25 +142,11 @@ export default function AdminPage() {
       setResourcesList(res);
       setRequestsList(reqs);
       setFeedbackList(fbs);
-      setAccessLogsList(stats.logs);
       setTotalVisits(stats.totalVisits);
-      setUniqueStudents(stats.uniqueStudents);
-      setTableExists(stats.tableExists);
-      setEditCountValue(String(stats.totalVisits));
     } catch (err) {
       console.error('Error loading admin data:', err);
     } finally {
       setIsLoadingData(false);
-    }
-  };
-
-  const handleSaveCount = async () => {
-    const num = parseInt(editCountValue, 10);
-    if (isNaN(num) || num < 0) return;
-    const ok = await updateVisitorCount(num);
-    if (ok) {
-      setTotalVisits(num);
-      setIsEditingCount(false);
     }
   };
 
@@ -341,17 +311,6 @@ export default function AdminPage() {
     }
   };
 
-  // Access Log Delete
-  const handleDeleteAccessLog = async (id: string) => {
-    if (confirm('Delete this visitor access log?')) {
-      try {
-        await deleteResourceAccessLog(id);
-        setAccessLogsList((prev) => prev.filter((l) => l.id !== id));
-      } catch (err: any) {
-        alert(`Failed to delete access log: ${err?.message || err}`);
-      }
-    }
-  };
 
   // AI Test
   const handleAiTest = async () => {
@@ -401,22 +360,6 @@ export default function AdminPage() {
     const matchSem = resourceSem === 'all' || r.semester === Number(resourceSem);
     return matchQuery && matchBranch && matchSem;
   });
-
-  // Filtered access logs (Visitor Logs)
-  const filteredAccessLogs = accessLogsList.filter((log) => {
-    const q = visitorSearch.toLowerCase().trim();
-    const matchQuery =
-      !q ||
-      log.studentName.toLowerCase().includes(q) ||
-      log.usn.toLowerCase().includes(q) ||
-      (log.email && log.email.toLowerCase().includes(q)) ||
-      log.resourceTitle.toLowerCase().includes(q);
-    const matchBranch = visitorBranch === 'all' || (log.branchId && isBranchMatch(log.branchId, visitorBranch));
-    return matchQuery && matchBranch;
-  });
-
-  const uniqueUsnsCount = new Set(accessLogsList.map((l) => l.usn.trim().toUpperCase())).size;
-  const totalViewsCount = accessLogsList.length;
 
   // Overview Stats
   const pendingRequests = requestsList.filter((r) => r.status === 'Under Review').length;
@@ -609,17 +552,6 @@ export default function AdminPage() {
               <span>Resources ({resourcesList.length})</span>
             </button>
             <button
-              onClick={() => setActiveTab('visitors')}
-              className={`px-3.5 py-2.5 border-b-2 flex items-center gap-2 transition-colors whitespace-nowrap ${
-                activeTab === 'visitors'
-                  ? 'border-[var(--accent)] text-[var(--accent)]'
-                  : 'border-transparent text-[var(--text-3)] hover:text-[var(--text-1)]'
-              }`}
-            >
-              <Users size={15} />
-              <span>Visitor Logs ({accessLogsList.length})</span>
-            </button>
-            <button
               onClick={() => setActiveTab('requests')}
               className={`px-3.5 py-2.5 border-b-2 flex items-center gap-2 transition-colors whitespace-nowrap ${
                 activeTab === 'requests'
@@ -681,14 +613,14 @@ export default function AdminPage() {
 
               <div className="card p-5 border-[var(--bd)] bg-[var(--bg-raised)] space-y-2">
                 <div className="flex items-center justify-between text-[var(--text-3)] text-xs font-semibold">
-                  <span>PDF Views / Visitors</span>
+                  <span>Total Visitors</span>
                   <Eye size={17} className="text-[var(--accent)]" />
                 </div>
                 <div className="text-3xl font-extrabold text-[var(--accent)]">
-                  {totalViewsCount}
+                  {totalVisits}
                 </div>
                 <p className="text-[11px] text-[var(--text-3)]">
-                  {uniqueUsnsCount} unique student USNs
+                  Live site visits &amp; visitors
                 </p>
               </div>
 
@@ -731,44 +663,7 @@ export default function AdminPage() {
             </div>
 
             {/* Quick Actions & Recent Activity */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Recent Visitor Accesses (USN & Student Name) */}
-              <div className="card p-5 border-[var(--bd)] bg-[var(--bg-raised)] space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-bold text-[var(--text-1)] flex items-center gap-2">
-                    <Users size={16} className="text-[var(--accent)]" />
-                    <span>Recent Visitor Views</span>
-                  </h2>
-                  <button
-                    onClick={() => setActiveTab('visitors')}
-                    className="text-xs text-[var(--accent)] hover:underline flex items-center gap-1"
-                  >
-                    View all <ChevronRight size={13} />
-                  </button>
-                </div>
-
-                <div className="space-y-2.5">
-                  {accessLogsList.slice(0, 4).map((log) => (
-                    <div
-                      key={log.id}
-                      className="p-3 rounded-xl border border-[var(--bd)] bg-[var(--bg-overlay)] flex items-center justify-between gap-3 text-xs"
-                    >
-                      <div className="space-y-0.5 min-w-0">
-                        <p className="font-semibold text-[var(--text-1)] truncate">{log.studentName}</p>
-                        <p className="text-[10px] text-[var(--text-3)] truncate">
-                          {log.resourceTitle}
-                        </p>
-                      </div>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[rgba(0,212,170,0.1)] text-[var(--accent)] border border-[rgba(0,212,170,0.25)] shrink-0 font-bold">
-                        {log.usn}
-                      </span>
-                    </div>
-                  ))}
-                  {accessLogsList.length === 0 && (
-                    <p className="text-xs text-[var(--text-3)] text-center py-4">No visitor accesses recorded yet.</p>
-                  )}
-                </div>
-              </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
               {/* Recent Requests */}
               <div className="card p-5 border-[var(--bd)] bg-[var(--bg-raised)] space-y-4">
@@ -1378,326 +1273,6 @@ export default function AdminPage() {
                   No student feedback submitted yet.
                 </div>
               )}
-            </div>
-          </div>
-        )}
-
-        {/* ======================= TAB: VISITOR ACCESS LOGS ======================= */}
-        {activeTab === 'visitors' && (
-          <div className="space-y-5">
-            {/* Header & Controls Banner */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-              <div>
-                <h2 className="text-base font-extrabold text-[var(--text-1)] flex items-center gap-2">
-                  <Users size={18} className="text-[var(--accent)]" />
-                  <span>Platform Visitors & Student Access Logs</span>
-                </h2>
-                <p className="text-xs text-[var(--text-3)]">
-                  Live site-wide visitor count alongside dedicated student access logs.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2.5">
-                <button
-                  onClick={loadAllData}
-                  disabled={isLoadingData}
-                  className="btn btn-ghost btn-sm text-xs flex items-center gap-1.5 border border-[var(--bd)]"
-                  title="Reload visitor logs"
-                >
-                  <RefreshCw size={13} className={isLoadingData ? 'animate-spin' : ''} />
-                  <span>Refresh</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Quick Metrics Bar (Visitors Count + Unique Students + Resource Views) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-              {/* Total Website Visitors Count */}
-              <div className="p-4 rounded-xl border border-[var(--bd)] bg-[var(--bg-raised)] space-y-2 relative">
-                <div className="flex items-center justify-between text-[10px] uppercase font-bold text-[var(--text-3)]">
-                  <span className="flex items-center gap-1.5">
-                    <Globe size={13} className="text-[var(--accent)]" />
-                    <span>Total Website Visitors</span>
-                  </span>
-                  <button
-                    onClick={() => setIsEditingCount(!isEditingCount)}
-                    className="text-[10px] text-[var(--text-3)] hover:text-[var(--accent)] flex items-center gap-1 font-mono transition-colors"
-                    title="Adjust or add yesterday's traffic count"
-                  >
-                    <Edit3 size={11} />
-                    <span>{isEditingCount ? 'Cancel' : 'Adjust'}</span>
-                  </button>
-                </div>
-
-                {isEditingCount ? (
-                  <div className="flex items-center gap-1.5 pt-1">
-                    <input
-                      type="number"
-                      value={editCountValue}
-                      onChange={(e) => setEditCountValue(e.target.value)}
-                      className="w-24 px-2 py-1 text-xs bg-[var(--bg-overlay)] border border-[var(--bd)] rounded-lg font-bold font-mono"
-                      min={0}
-                    />
-                    <button
-                      onClick={handleSaveCount}
-                      className="btn btn-primary btn-sm px-2.5 py-1 text-[11px] font-bold"
-                    >
-                      Save
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex items-baseline gap-2">
-                    <p className="text-3xl font-extrabold text-[var(--accent)]">{totalVisits}</p>
-                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-400 bg-emerald-950/40 border border-emerald-500/30 px-1.5 py-0.5 rounded-full font-mono">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                      Active
-                    </span>
-                  </div>
-                )}
-                <span className="text-[10px] text-[var(--text-3)] block">
-                  All page views & site visits recorded
-                </span>
-              </div>
-
-              {/* Unique Verified Students (USNs) */}
-              <div className="p-4 rounded-xl border border-[var(--bd)] bg-[var(--bg-raised)] space-y-2">
-                <span className="text-[10px] uppercase font-bold text-[var(--text-3)] flex items-center gap-1.5">
-                  <UserCheck size={13} className="text-emerald-400" />
-                  <span>Unique Students (USNs)</span>
-                </span>
-                <p className="text-3xl font-extrabold text-emerald-400">{uniqueStudents || uniqueUsnsCount}</p>
-                <span className="text-[10px] text-[var(--text-3)] block">Distinct VTU student USNs</span>
-              </div>
-
-              {/* PDF Views / Document Accesses */}
-              <div className="p-4 rounded-xl border border-[var(--bd)] bg-[var(--bg-raised)] space-y-2">
-                <span className="text-[10px] uppercase font-bold text-[var(--text-3)] flex items-center gap-1.5">
-                  <Eye size={13} className="text-cyan-400" />
-                  <span>PDF Views / Opens</span>
-                </span>
-                <p className="text-3xl font-extrabold text-cyan-400">{totalViewsCount}</p>
-                <span className="text-[10px] text-[var(--text-3)] block">Study notes & PYQ opens</span>
-              </div>
-
-              {/* Latest Access Event */}
-              <div className="p-4 rounded-xl border border-[var(--bd)] bg-[var(--bg-raised)] space-y-2">
-                <span className="text-[10px] uppercase font-bold text-[var(--text-3)] flex items-center gap-1.5">
-                  <Clock size={13} className="text-amber-400" />
-                  <span>Latest Visitor</span>
-                </span>
-                <p className="text-sm font-bold text-[var(--text-1)] truncate mt-1">
-                  {accessLogsList[0] ? accessLogsList[0].studentName : 'None yet'}
-                </p>
-                <span className="text-[10px] text-[var(--text-3)] font-mono block truncate">
-                  {accessLogsList[0] ? `${accessLogsList[0].usn} • ${accessLogsList[0].accessedAt}` : 'Awaiting visits'}
-                </span>
-              </div>
-            </div>
-
-            {/* Supabase Schema Setup Notice (if table not created yet) */}
-            {!tableExists && (
-              <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 text-xs space-y-2.5">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <AlertCircle size={16} className="text-amber-400 shrink-0" />
-                    <span className="font-bold text-[var(--text-1)]">
-                      Supabase Cloud Sync Setup Required
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => {
-                      const sql = `-- Run in Supabase SQL Editor:
-ALTER TABLE public.visitor_logs ADD COLUMN IF NOT EXISTS email TEXT;
-
-CREATE TABLE IF NOT EXISTS public.site_stats (
-  id TEXT PRIMARY KEY,
-  count BIGINT NOT NULL DEFAULT 0,
-  "updatedAt" TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS public.visitor_logs (
-  id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,
-  usn TEXT NOT NULL,
-  email TEXT,
-  action TEXT NOT NULL DEFAULT 'Viewed Resource',
-  details TEXT NOT NULL,
-  branch TEXT,
-  sem TEXT,
-  "createdAt" TEXT NOT NULL
-);
-
-ALTER TABLE public.site_stats ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.visitor_logs ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Allow public read site_stats" ON public.site_stats FOR SELECT USING (true);
-CREATE POLICY "Allow public insert site_stats" ON public.site_stats FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow public update site_stats" ON public.site_stats FOR UPDATE USING (true);
-
-CREATE POLICY "Allow public read visitor_logs" ON public.visitor_logs FOR SELECT USING (true);
-CREATE POLICY "Allow public insert visitor_logs" ON public.visitor_logs FOR INSERT WITH CHECK (true);
-CREATE POLICY "Allow public delete visitor_logs" ON public.visitor_logs FOR DELETE USING (true);`;
-                      navigator.clipboard.writeText(sql);
-                      setCopiedSql(true);
-                      setTimeout(() => setCopiedSql(false), 2500);
-                    }}
-                    className="btn btn-primary btn-sm text-[11px] font-bold px-3 py-1 flex items-center gap-1.5 shrink-0"
-                  >
-                    {copiedSql ? (
-                      <>
-                        <Check size={12} />
-                        <span>Copied SQL!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy size={12} />
-                        <span>Copy Supabase SQL</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-                <p className="text-[var(--text-2)] leading-relaxed">
-                  Your website is actively tracking visitors in server memory. To persist all visitor logs in your Supabase cloud database permanently, click <strong>&quot;Copy Supabase SQL&quot;</strong> and run it in your{' '}
-                  <a
-                    href="https://supabase.com/dashboard/project/rzttcilfxkccakrkfwgf/sql"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[var(--accent)] underline font-semibold"
-                  >
-                    Supabase SQL Editor
-                  </a>
-                  .
-                </p>
-              </div>
-            )}
-
-            {/* Separate Visitor Log Header */}
-            <div className="flex items-center justify-between pt-2">
-              <h3 className="text-sm font-bold text-[var(--text-1)] flex items-center gap-2">
-                <FileText size={15} className="text-[var(--accent)]" />
-                <span>Separate Visitor Access Log ({filteredAccessLogs.length})</span>
-              </h3>
-            </div>
-
-            {/* Search & Filter Bar */}
-            <div className="card p-3.5 border-[var(--bd)] bg-[var(--bg-raised)] flex flex-wrap items-center justify-between gap-3">
-              <div className="relative flex-1 min-w-[220px] max-w-md">
-                <Search size={14} className="absolute left-3 top-2.5 text-[var(--text-3)]" />
-                <input
-                  type="text"
-                  placeholder="Search by Student Name, USN, Email, or Resource Title..."
-                  value={visitorSearch}
-                  onChange={(e) => setVisitorSearch(e.target.value)}
-                  className="w-full pl-9 pr-3 py-1.5 bg-[var(--bg-overlay)] border border-[var(--bd)] rounded-xl text-xs text-[var(--text-1)] focus:outline-none focus:border-[var(--accent)]"
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <select
-                  value={visitorBranch}
-                  onChange={(e) => setVisitorBranch(e.target.value)}
-                  className="px-3 py-1.5 bg-[var(--bg-overlay)] border border-[var(--bd)] rounded-xl text-xs text-[var(--text-1)] focus:outline-none"
-                >
-                  <option value="all">All Branches ({branches.length})</option>
-                  {branches.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.shortName}
-                    </option>
-                  ))}
-                </select>
-
-                {(visitorSearch || visitorBranch !== 'all') && (
-                  <button
-                    onClick={() => {
-                      setVisitorSearch('');
-                      setVisitorBranch('all');
-                    }}
-                    className="btn btn-ghost btn-sm text-[11px] px-2 py-1"
-                  >
-                    Clear Filters
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Visitor Access Logs Table */}
-            <div className="card border-[var(--bd)] bg-[var(--bg-raised)] overflow-hidden shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-[var(--bg-overlay)] border-b border-[var(--bd)] text-[var(--text-3)] uppercase text-[10px] font-bold tracking-wider">
-                    <tr>
-                      <th className="py-3 px-4">Student Name</th>
-                      <th className="py-3 px-4">Email</th>
-                      <th className="py-3 px-4">USN</th>
-                      <th className="py-3 px-4">Resource Title</th>
-                      <th className="py-3 px-4">Branch / Sem</th>
-                      <th className="py-3 px-4">Accessed At</th>
-                      <th className="py-3 px-4 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[var(--bd)]">
-                    {filteredAccessLogs.map((log) => (
-                      <tr key={log.id} className="hover:bg-[var(--bg-overlay)]/40 transition-colors">
-                        <td className="py-3 px-4 whitespace-nowrap">
-                          <div className="font-semibold text-[var(--text-1)] flex items-center gap-1.5">
-                            <span className="w-6 h-6 rounded-full bg-[rgba(0,212,170,0.1)] border border-[rgba(0,212,170,0.2)] flex items-center justify-center text-[10px] font-bold text-[var(--accent)] shrink-0">
-                              {log.studentName.charAt(0).toUpperCase()}
-                            </span>
-                            <span>{log.studentName}</span>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 whitespace-nowrap">
-                          {log.email ? (
-                            <span className="font-mono text-[11px] text-[var(--text-2)] hover:text-[var(--text-1)] select-all">
-                              {log.email}
-                            </span>
-                          ) : (
-                            <span className="text-[var(--text-3)] text-[11px]">—</span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 whitespace-nowrap">
-                          <span className="inline-block px-2 py-0.5 rounded-md font-mono text-[11px] font-bold bg-[rgba(0,212,170,0.08)] border border-[rgba(0,212,170,0.3)] text-[var(--accent)]">
-                            {log.usn}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 max-w-xs">
-                          <div className="font-semibold text-[var(--text-1)] line-clamp-1">{log.resourceTitle}</div>
-                          <span className="text-[9px] uppercase font-mono text-[var(--text-3)]">
-                            {log.resourceType || 'notes'}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 whitespace-nowrap">
-                          <span className="badge badge-cyan text-[10px] font-mono">
-                            {log.branchId ? formatBranchName(log.branchId) : 'VTU'}
-                            {log.semester ? ` · S${log.semester}` : ''}
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-[var(--text-3)] font-mono text-[11px] whitespace-nowrap">
-                          {log.accessedAt}
-                        </td>
-                        <td className="py-3 px-4 text-right whitespace-nowrap">
-                          <button
-                            onClick={() => handleDeleteAccessLog(log.id)}
-                            className="p-1.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors"
-                            title="Delete this access log"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                    {filteredAccessLogs.length === 0 && (
-                      <tr>
-                        <td colSpan={7} className="py-10 text-center text-xs text-[var(--text-3)]">
-                          {accessLogsList.length === 0
-                            ? 'No visitor access records logged yet. As students click to view notes or PYQs, their Name, Email, and USN will appear here in real-time.'
-                            : 'No access logs match the current search filters.'}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
             </div>
           </div>
         )}
