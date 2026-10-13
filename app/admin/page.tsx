@@ -710,7 +710,7 @@ export default function AdminPage() {
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
                   <span>Online</span>
                 </div>
-                <p className="text-[10px] text-[var(--text-3)] font-mono truncate">muse-spark-1.3</p>
+                <p className="text-[10px] text-[var(--text-3)] font-mono truncate">gpt-4o-mini (OpenAI)</p>
               </div>
             </div>
 
@@ -1340,8 +1340,8 @@ export default function AdminPage() {
                     <Bot size={18} />
                   </div>
                   <div>
-                    <h2 className="text-sm font-bold text-[var(--text-1)]">Meta Model API Engine</h2>
-                    <p className="text-xs text-[var(--text-3)]">Primary academic reasoning copilot for VTU students</p>
+                    <h2 className="text-sm font-bold text-[var(--text-1)]">OpenAI gpt-4o-mini Engine</h2>
+                    <p className="text-xs text-[var(--text-3)]">High-speed academic reasoning copilot for VTU students</p>
                   </div>
                 </div>
                 <span className="badge badge-cyan text-[10px]">Active & Streaming</span>
@@ -1350,15 +1350,15 @@ export default function AdminPage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs">
                 <div className="p-2.5 rounded-xl border border-[var(--bd)] bg-[var(--bg-overlay)]">
                   <span className="text-[10px] text-[var(--text-3)] block font-semibold">Active Model</span>
-                  <span className="font-mono font-bold text-[var(--text-1)]">muse-spark-1.3</span>
+                  <span className="font-mono font-bold text-[var(--text-1)]">gpt-4o-mini</span>
                 </div>
                 <div className="p-2.5 rounded-xl border border-[var(--bd)] bg-[var(--bg-overlay)]">
                   <span className="text-[10px] text-[var(--text-3)] block font-semibold">API Endpoint</span>
-                  <span className="font-mono font-bold text-[var(--text-1)]">https://api.meta.ai/v1</span>
+                  <span className="font-mono font-bold text-[var(--text-1)]">/api/ai/chat · /api/chat</span>
                 </div>
                 <div className="p-2.5 rounded-xl border border-[var(--bd)] bg-[var(--bg-overlay)]">
-                  <span className="text-[10px] text-[var(--text-3)] block font-semibold">Fallbacks Configured</span>
-                  <span className="font-mono font-bold text-[var(--text-1)]">Groq (OSS 20B) · Gemini 1.5</span>
+                  <span className="text-[10px] text-[var(--text-3)] block font-semibold">Provider Mode</span>
+                  <span className="font-mono font-bold text-[var(--text-1)]">Edge Streaming · Vision Q&A</span>
                 </div>
               </div>
             </div>
