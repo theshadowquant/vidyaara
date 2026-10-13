@@ -178,51 +178,51 @@ export async function recordResourceAccess(data: {
  * Fetch visitor statistics & all access logs for the Admin Panel
  */
 export async function fetchVisitorStats(): Promise<VisitorStatsResponse> {
+  // If Supabase browser client is ready, query site_stats directly for lowest latency
+  if (isSupabaseConfigured()) {
+    try {
+      const client = browserClient();
+      const { data } = await client
+        .from('site_stats')
+        .select('count')
+        .eq('id', 'total_visits')
+        .maybeSingle();
+
+      if (data && data.count !== undefined) {
+        return {
+          totalVisits: Number(data.count) || 0,
+          uniqueStudents: 0,
+          logsCount: 0,
+          logs: [],
+          tableExists: true,
+        };
+      }
+    } catch {
+      // Fallback to API route
+    }
+  }
+
   try {
     const res = await fetch('/api/analytics/stats', { cache: 'no-store' });
     if (res.ok) {
       const json = await res.json();
-      if (json.success) {
-        const formattedLogs: ResourceAccessLog[] = (json.logs || []).map((l: any) => ({
-          id: l.id || `log-${Math.random()}`,
-          studentName: l.name || l.studentName || 'Student',
-          usn: l.usn || 'N/A',
-          email: l.email || null,
-          resourceTitle: l.details || l.resourceTitle || 'Resource',
-          resourceType: l.action || 'notes',
-          branchId: l.branch || l.branchId || null,
-          semester: l.sem ? Number(l.sem) : null,
-          accessedAt: l.createdAt
-            ? new Date(l.createdAt).toLocaleString('en-IN', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-              })
-            : new Date().toLocaleDateString('en-IN'),
-        }));
-
-        return {
-          totalVisits: Number(json.totalVisits) || 0,
-          uniqueStudents: Number(json.uniqueStudents) || 0,
-          logsCount: formattedLogs.length,
-          logs: formattedLogs,
-          tableExists: Boolean(json.tableExists),
-        };
-      }
+      return {
+        totalVisits: Number(json.totalVisits) || 0,
+        uniqueStudents: 0,
+        logsCount: 0,
+        logs: [],
+        tableExists: true,
+      };
     }
   } catch (err) {
     console.warn('Error fetching /api/analytics/stats:', err);
   }
 
-  // Fallback to local logs
-  const local = getLocalLogs();
   return {
-    totalVisits: local.length,
-    uniqueStudents: new Set(local.map((l) => l.usn)).size,
-    logsCount: local.length,
-    logs: local,
+    totalVisits: 0,
+    uniqueStudents: 0,
+    logsCount: 0,
+    logs: [],
     tableExists: false,
   };
 }

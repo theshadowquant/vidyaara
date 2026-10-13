@@ -55,6 +55,7 @@ type AdminTab = 'overview' | 'resources' | 'requests' | 'feedback' | 'ai';
 export default function AdminPage() {
   // Auth state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState<string | null>(null);
@@ -67,7 +68,7 @@ export default function AdminPage() {
   const [resourcesList, setResourcesList] = useState<Resource[]>([]);
   const [requestsList, setRequestsList] = useState<NoteRequest[]>([]);
   const [feedbackList, setFeedbackList] = useState<Feedback[]>([]);
-  const [totalVisits, setTotalVisits] = useState<number>(48);
+  const [totalVisits, setTotalVisits] = useState<number>(0);
   const [isLoadingData, setIsLoadingData] = useState(false);
 
   // Resource Filter & Modal
@@ -123,32 +124,56 @@ export default function AdminPage() {
       const isAuth = await isAdminAuthenticated();
       setIsAuthenticated(isAuth);
       if (isAuth || !isSupabaseConfigured()) {
-        await loadAllData();
+        loadAllData();
       }
     } catch {
       setIsAuthenticated(false);
+    } finally {
+      setIsCheckingAuth(false);
     }
   };
 
-  const loadAllData = async () => {
+  const loadAllData = () => {
     setIsLoadingData(true);
-    try {
-      const [res, reqs, fbs, stats] = await Promise.all([
-        fetchResources(),
-        fetchNoteRequests(),
-        fetchFeedbacks(),
-        fetchVisitorStats(),
-      ]);
-      setResourcesList(res);
-      setRequestsList(reqs);
-      setFeedbackList(fbs);
-      setTotalVisits(stats.totalVisits);
-    } catch (err) {
-      console.error('Error loading admin data:', err);
-    } finally {
-      setIsLoadingData(false);
-    }
+    // Fetch stats and lists progressively so nothing blocks
+    fetchVisitorStats()
+      .then((s) => {
+        if (s.totalVisits > 0) setTotalVisits(s.totalVisits);
+      })
+      .catch(console.warn);
+
+    fetchResources()
+      .then((r) => setResourcesList(r))
+      .catch(console.warn);
+
+    fetchNoteRequests()
+      .then((reqs) => setRequestsList(reqs))
+      .catch(console.warn);
+
+    fetchFeedbacks()
+      .then((fbs) => setFeedbackList(fbs))
+      .catch(console.warn)
+      .finally(() => setIsLoadingData(false));
   };
+
+  // Real-time visitor sync ticker (every 3 seconds)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    fetchVisitorStats().then((s) => {
+      if (s.totalVisits > 0) setTotalVisits(s.totalVisits);
+    }).catch(() => {});
+
+    const interval = setInterval(() => {
+      fetchVisitorStats().then((s) => {
+        if (s.totalVisits > 0) {
+          setTotalVisits((prev) => (s.totalVisits !== prev ? s.totalVisits : prev));
+        }
+      }).catch(() => {});
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [isAuthenticated]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -372,6 +397,16 @@ export default function AdminPage() {
           feedbackList.length
         ).toFixed(1)
       : '5.0';
+
+  // AUTHENTICATION CHECKING SKELETON (Prevents flash of login screen)
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-[70vh] flex flex-col items-center justify-center gap-3">
+        <div className="w-8 h-8 rounded-full border-2 border-[var(--accent)] border-t-transparent animate-spin" />
+        <p className="text-xs text-[var(--text-3)] font-mono">Loading Vidyaaraa Admin...</p>
+      </div>
+    );
+  }
 
   // AUTHENTICATION LOGIN SCREEN
   if (!isAuthenticated) {
@@ -611,16 +646,33 @@ export default function AdminPage() {
                 <p className="text-[11px] text-[var(--text-3)]">All branches & semesters</p>
               </div>
 
-              <div className="card p-5 border-[var(--bd)] bg-[var(--bg-raised)] space-y-2">
+              <div className="card p-5 border-[var(--bd)] bg-[var(--bg-raised)] space-y-2 relative overflow-hidden">
                 <div className="flex items-center justify-between text-[var(--text-3)] text-xs font-semibold">
-                  <span>Total Visitors</span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>Live Visitors</span>
+                  </span>
                   <Eye size={17} className="text-[var(--accent)]" />
                 </div>
-                <div className="text-3xl font-extrabold text-[var(--accent)]">
-                  {totalVisits}
+                <div className="text-3xl font-extrabold text-[var(--accent)] tracking-tight flex items-baseline gap-2">
+                  <span>{totalVisits}</span>
+                  <span className="text-[10px] font-mono uppercase text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                    Realtime
+                  </span>
                 </div>
-                <p className="text-[11px] text-[var(--text-3)]">
-                  Live site visits &amp; visitors
+                <p className="text-[11px] text-[var(--text-3)] flex items-center justify-between">
+                  <span>Site visits &amp; visitors</span>
+                  <button
+                    onClick={() => {
+                      fetchVisitorStats().then((s) => {
+                        if (s.totalVisits > 0) setTotalVisits(s.totalVisits);
+                      });
+                    }}
+                    className="text-[10px] text-[var(--accent)] hover:underline font-mono"
+                    title="Refresh visitor count"
+                  >
+                    Sync
+                  </button>
                 </p>
               </div>
 

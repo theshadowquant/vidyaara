@@ -44,22 +44,10 @@ export async function isAdminAuthenticated(): Promise<boolean> {
 
   const client = browserClient();
   const {
-    data: { user },
-  } = await client.auth.getUser();
+    data: { session },
+  } = await client.auth.getSession();
 
-  if (!user) return false;
-
-  // Verify in admin_roles table
-  const { data, error } = await client
-    .from('admin_roles')
-    .select('user_id')
-    .eq('user_id', user.id)
-    .single();
-
-  if (error || !data) {
-    // If admin_roles table isn't populated yet, any logged-in user in Supabase auth is treated as authenticated admin during initial transition
-    return Boolean(user);
-  }
+  if (!session?.user) return false;
 
   return true;
 }

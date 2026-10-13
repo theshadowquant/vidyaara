@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { adminClient } from '@/lib/db/client';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     let supabase;
@@ -10,13 +12,10 @@ export async function GET() {
       // Offline fallback
     }
 
-    let totalVisits = 48; // Baseline including traffic from yesterday
-    let logs: any[] = [];
-    let tableExists = false;
+    let totalVisits = 165;
 
     if (supabase) {
       try {
-        // 1. Fetch site_stats
         const { data: statsData, error: statsError } = await supabase
           .from('site_stats')
           .select('count')
@@ -24,47 +23,31 @@ export async function GET() {
           .maybeSingle();
 
         if (!statsError && statsData) {
-          totalVisits = Math.max(Number(statsData.count) || 0, totalVisits);
-          tableExists = true;
-        }
-
-        // 2. Fetch visitor_logs
-        const { data: logsData, error: logsError } = await supabase
-          .from('visitor_logs')
-          .select('*')
-          .order('createdAt', { ascending: false });
-
-        if (!logsError && logsData) {
-          logs = logsData;
-          tableExists = true;
-        } else if (logsError?.code !== 'PGRST205') {
-          console.warn('Error reading visitor_logs:', logsError?.message);
+          totalVisits = Math.max(Number(statsData.count) || 0, 0);
         }
       } catch (e: any) {
         console.warn('Supabase stats error:', e?.message);
       }
     }
 
-    const uniqueUsns = new Set(
-      logs
-        .map((l: any) => l.usn?.trim().toUpperCase())
-        .filter((u: string) => Boolean(u) && u !== 'VTU-GUEST')
-    ).size;
-
-    return NextResponse.json({
-      success: true,
-      totalVisits,
-      uniqueStudents: uniqueUsns,
-      logsCount: logs.length,
-      logs,
-      tableExists,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        totalVisits,
+        timestamp: Date.now(),
+      },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+        },
+      }
+    );
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err?.message }, { status: 500 });
   }
 }
 
-// POST: Admin updates visitor count (e.g. adding yesterday's visitors)
+// POST: Admin updates visitor count
 export async function POST(req: Request) {
   try {
     const { totalVisits } = await req.json();
@@ -82,22 +65,6 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ success: true, count: countNumber });
-  } catch (err: any) {
-    return NextResponse.json({ error: err?.message }, { status: 500 });
-  }
-}
-
-// DELETE: Admin deletes a visitor log
-export async function DELETE(req: Request) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get('id');
-    if (!id) return NextResponse.json({ error: 'Missing log ID' }, { status: 400 });
-
-    const supabase = adminClient();
-    await supabase.from('visitor_logs').delete().eq('id', id);
-
-    return NextResponse.json({ success: true });
   } catch (err: any) {
     return NextResponse.json({ error: err?.message }, { status: 500 });
   }
