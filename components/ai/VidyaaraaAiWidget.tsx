@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Sparkles,
   Send,
@@ -9,6 +9,7 @@ import {
   Bot,
   User,
   X,
+  Maximize2,
   ChevronDown,
   RotateCcw,
   BookOpen,
@@ -45,6 +46,48 @@ export function VidyaaraaAiWidget() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const modeDropdownRef = useRef<HTMLDivElement>(null);
   const scopeDropdownRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  // Load shared session history on mount
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('vidyaaraa_shared_chat');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Sync messages to shared session storage
+  useEffect(() => {
+    if (messages.length > 0) {
+      try {
+        sessionStorage.setItem('vidyaaraa_shared_chat', JSON.stringify(messages));
+      } catch {
+        // ignore
+      }
+    }
+  }, [messages]);
+
+  const handleExpandToMainChat = () => {
+    try {
+      if (messages.length > 0) {
+        sessionStorage.setItem('vidyaaraa_shared_chat', JSON.stringify(messages));
+      }
+      if (input.trim()) {
+        sessionStorage.setItem('vidyaaraa_chat_draft', input.trim());
+      }
+    } catch {
+      // ignore
+    }
+    setIsOpen(false);
+    router.push('/ai');
+  };
 
   // Keyboard accessibility: Escape closes widget
   useEffect(() => {
@@ -243,7 +286,12 @@ export function VidyaaraaAiWidget() {
             <div className="flex items-center gap-1">
               {messages.length > 0 && (
                 <button
-                  onClick={() => setMessages([])}
+                  onClick={() => {
+                    setMessages([]);
+                    try {
+                      sessionStorage.removeItem('vidyaaraa_shared_chat');
+                    } catch {}
+                  }}
                   className="btn btn-ghost btn-sm p-1.5 text-[var(--text-3)] hover:text-red-400 rounded-md"
                   title="Clear chat history"
                   aria-label="Clear chat history"
@@ -251,6 +299,14 @@ export function VidyaaraaAiWidget() {
                   <Trash2 size={14} />
                 </button>
               )}
+              <button
+                onClick={handleExpandToMainChat}
+                className="btn btn-ghost btn-sm p-1.5 text-[var(--text-3)] hover:text-[var(--accent)] rounded-md flex items-center gap-1"
+                title="Expand & continue chat in main chatbot (/ai)"
+                aria-label="Expand to main chatbot"
+              >
+                <Maximize2 size={15} />
+              </button>
               <button
                 onClick={() => setIsOpen(false)}
                 className="btn btn-ghost btn-sm p-1.5 text-[var(--text-3)] hover:text-[var(--text-1)] rounded-md"

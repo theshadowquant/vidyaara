@@ -3,6 +3,7 @@
 import {
   FormEvent,
   KeyboardEvent,
+  useEffect,
   useRef,
   useState,
 } from "react";
@@ -110,6 +111,49 @@ export default function VidyaaraaChat() {
   const cameraRef = useRef<HTMLInputElement>(null);
   const uploadRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  // Sync with shared chat history from floating widget
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('vidyaaraa_shared_chat');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setMessages(parsed);
+          setTimeout(() => {
+            bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+          }, 120);
+        }
+      }
+      const draft = sessionStorage.getItem('vidyaaraa_chat_draft');
+      if (draft) {
+        setInput(draft);
+        sessionStorage.removeItem('vidyaaraa_chat_draft');
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Persist messages to shared session storage
+  useEffect(() => {
+    if (messages.length > 0) {
+      try {
+        sessionStorage.setItem('vidyaaraa_shared_chat', JSON.stringify(messages));
+      } catch {
+        // ignore
+      }
+    }
+  }, [messages]);
+
+  function handleClearChat() {
+    setMessages([]);
+    try {
+      sessionStorage.removeItem('vidyaaraa_shared_chat');
+    } catch {
+      // ignore
+    }
+  }
 
   async function handleFile(file?: File) {
     if (!file) return;
@@ -346,9 +390,24 @@ export default function VidyaaraaChat() {
           </p>
         </div>
 
-        <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800">
-          Text + Photo
-        </span>
+        <div className="flex items-center gap-2">
+          {messages.length > 0 && (
+            <button
+              type="button"
+              onClick={handleClearChat}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-500 hover:border-red-200 hover:bg-red-50 hover:text-red-600 transition dark:border-slate-800 dark:text-slate-400 dark:hover:border-red-900 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+              title="Clear chat history"
+              aria-label="Clear chat history"
+            >
+              <Trash2 size={13} />
+              <span>Clear</span>
+            </button>
+          )}
+
+          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800">
+            Text + Photo
+          </span>
+        </div>
       </header>
 
       {/* Conversation */}
