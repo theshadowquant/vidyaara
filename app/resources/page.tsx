@@ -136,11 +136,12 @@ export default function ResourcesPage() {
                 Search Notes
               </label>
               <div className="relative flex items-center">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-3)] pointer-events-none" size={15} />
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-3)] pointer-events-none" size={15} />
                 <input
                   type="text"
                   placeholder="Search notes, topics, subjects, modules..."
-                  className="input pl-10 text-xs w-full"
+                  className="input !pl-10 text-xs w-full"
+                  style={{ paddingLeft: '2.5rem' }}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />

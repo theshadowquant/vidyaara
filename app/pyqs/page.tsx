@@ -121,12 +121,13 @@ export default function PYQsPage() {
               <label className="label text-[11px] font-semibold text-[var(--text-2)] mb-1 block">
                 Search Question Papers
               </label>
-              <div className="relative">
-                <Search className="absolute left-3 top-2.5 text-[var(--text-3)]" size={15} />
+              <div className="relative flex items-center">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-3)] pointer-events-none" size={15} />
                 <input
                   type="text"
                   placeholder="Search subject name, subject code, year (2024)..."
-                  className="input pl-9 text-xs w-full"
+                  className="input !pl-10 text-xs w-full"
+                  style={{ paddingLeft: '2.5rem' }}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
