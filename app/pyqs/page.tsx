@@ -3,23 +3,37 @@
 import { useState, useMemo, useEffect } from 'react';
 import { Search, SlidersHorizontal, BookOpen, X } from 'lucide-react';
 import { branches, semesters, isBranchMatch } from '@/data/universities';
-import { pyqs as staticPYQs } from '@/data/pyqs';
 import { fetchPYQs } from '@/lib/db/pyqs';
 import { PYQCard } from '@/components/pyqs/PYQCard';
 import type { PYQ } from '@/types';
 
 export default function PYQsPage() {
-  const [allPYQs, setAllPYQs] = useState<PYQ[]>(staticPYQs);
-  const [selectedBranch, setSelectedBranch] = useState('cse-allied');
-  const [selectedSem, setSelectedSem] = useState<number>(4);
+  const [allPYQs, setAllPYQs] = useState<PYQ[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedBranch, setSelectedBranch] = useState('all');
+  const [selectedSem, setSelectedSem] = useState<number>(0);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
-    fetchPYQs().then((data) => {
-      if (data && data.length > 0) {
-        setAllPYQs(data);
-      }
-    });
+    let mounted = true;
+    fetchPYQs()
+      .then((data) => {
+        if (mounted) {
+          setAllPYQs(data || []);
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load PYQs', err);
+      })
+      .finally(() => {
+        if (mounted) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   // Handle reset filters
@@ -138,7 +152,16 @@ export default function PYQsPage() {
 
         {/* Papers Grid */}
         <div>
-          {filteredPYQs.length === 0 ? (
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[1, 2, 3, 4, 5, 6].map((n) => (
+                <div key={n} className="card p-4 space-y-3 animate-pulse">
+                  <div className="h-4 bg-[var(--bd)] rounded w-1/3" />
+                  <div className="h-5 bg-[var(--bd)] rounded w-2/3" />
+                </div>
+              ))}
+            </div>
+          ) : filteredPYQs.length === 0 ? (
             <div className="card p-12 text-center space-y-4 max-w-md mx-auto">
               <div className="w-12 h-12 rounded-full bg-[var(--bg-overlay)] border border-[var(--bd)] flex items-center justify-center mx-auto text-[var(--text-3)]">
                 <BookOpen size={20} />
@@ -146,7 +169,7 @@ export default function PYQsPage() {
               <div className="space-y-1">
                 <h3 className="text-sm font-bold text-[var(--text-1)]">No question papers found</h3>
                 <p className="text-xs text-[var(--text-2)] leading-relaxed">
-                  We don&apos;t have question papers matching this exact filter combination. Try resetting the filters or searching for another subject.
+                  No question papers match this filter. Upload question papers from the Admin Panel.
                 </p>
               </div>
               <button onClick={handleClearFilters} className="btn btn-secondary btn-sm mx-auto">
