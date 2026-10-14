@@ -55,8 +55,8 @@ export const resources: Resource[] = [
     type: 'notes',
     title: 'DBMS Notes — Unit 1 to 5 (VTU 2022 Scheme)',
     description: 'ER model, relational model, SQL, normalization, transactions and concurrency.',
-    url: '#demo',
-    isDemo: true,
+    url: 'https://drive.google.com/file/d/1yOa_X1rtSwCIONQtmF2qAfevwCJLEHYu/view?usp=sharing',
+    isDemo: false,
     uploadedAt: '2024-02-01',
   },
   {
@@ -69,8 +69,8 @@ export const resources: Resource[] = [
     type: 'syllabus',
     title: 'DBMS Syllabus — 21CS42',
     description: 'Official VTU 2022 scheme syllabus for Database Management Systems.',
-    url: '#demo',
-    isDemo: true,
+    url: 'https://drive.google.com/file/d/1IrAZl0Vi5yYJ7tfIPv2IqkMUZk9JBRnh/view?usp=sharing',
+    isDemo: false,
     uploadedAt: '2024-01-05',
   },
   {
@@ -83,8 +83,8 @@ export const resources: Resource[] = [
     type: 'lab-manual',
     title: 'DBMS Lab Manual — 21CSL46',
     description: 'SQL queries, PL/SQL programs, triggers and stored procedures with expected output.',
-    url: '#demo',
-    isDemo: true,
+    url: 'https://drive.google.com/file/d/1fIjz1r1lkbXIllLxXmELOTi5LdMChexB/view?usp=sharing',
+    isDemo: false,
     uploadedAt: '2024-02-05',
   },
   // Semester 4 — ADA

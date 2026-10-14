@@ -17,7 +17,11 @@ export default function ResourcesPage() {
   useEffect(() => {
     fetchResources().then((data) => {
       if (data && data.length > 0) {
-        setAllResources(data);
+        const supabaseTitles = new Set(data.map((r) => r.title.toLowerCase().trim()));
+        const uniqueStatic = staticResources.filter(
+          (s) => !supabaseTitles.has(s.title.toLowerCase().trim())
+        );
+        setAllResources([...data, ...uniqueStatic]);
       }
     });
   }, []);

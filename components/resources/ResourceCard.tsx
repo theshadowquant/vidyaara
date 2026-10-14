@@ -31,15 +31,17 @@ export function ResourceCard({ resource }: { resource: Resource }) {
     localStorage.setItem('cf_saved_resources', JSON.stringify(updated));
   };
 
-  const handleOpenResource = () => {
-    if (resource.url && resource.url !== '#demo') {
-      const targetUrl = formatGoogleDriveUrl(resource.url);
-      window.open(targetUrl, '_blank', 'noopener,noreferrer');
-    } else {
-      alert('This is a demo resource. In production, your Google Drive PDF link opens automatically!');
+  const getResourceUrl = () => {
+    if (resource.url && resource.url !== '#demo' && !resource.url.startsWith('#')) {
+      return formatGoogleDriveUrl(resource.url);
     }
+    // High-relevance fallback: direct VTU PDF resource search for the subject and title
+    return `https://www.google.com/search?q=${encodeURIComponent(
+      `VTU ${resource.subjectName} ${resource.title} PDF notes`
+    )}`;
   };
 
+  const targetUrl = getResourceUrl();
   const formattedType = resource.type.replace('-', ' ');
 
   return (
@@ -81,17 +83,19 @@ export function ResourceCard({ resource }: { resource: Resource }) {
       {/* Footer / CTA Actions */}
       <div className="pt-4 border-t border-[var(--bd-subtle)] mt-5 flex items-center justify-between">
         <span className="text-[9px] text-[var(--text-3)] font-mono">
-          Uploaded: {resource.uploadedAt}
+          Uploaded: {resource.uploadedAt ? resource.uploadedAt.slice(0, 10) : 'Recent'}
         </span>
 
-        <button
-          type="button"
-          onClick={handleOpenResource}
-          className="btn btn-primary btn-sm flex items-center gap-1 text-xs font-semibold shadow-sm hover:brightness-110"
+        <a
+          href={targetUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn btn-primary btn-sm flex items-center gap-1.5 text-xs font-semibold shadow-sm hover:brightness-110 no-underline cursor-pointer"
+          title={`Open ${resource.title}`}
         >
           <span>View Notes</span>
           <ExternalLink size={12} />
-        </button>
+        </a>
       </div>
     </div>
   );

@@ -1,12 +1,27 @@
 'use client';
 
 import Link from 'next/link';
-import { FileText, ArrowRight, Download, BookOpen } from 'lucide-react';
+import { ArrowRight, BookOpen } from 'lucide-react';
+import { useState, useEffect } from 'react';
 import { resources } from '@/data/resources';
+import { fetchResources } from '@/lib/db/resources';
+import { formatGoogleDriveUrl } from '@/lib/utils';
+import type { Resource } from '@/types';
 
 export function PopularResources() {
-  // Show a few popular files
-  const popular = resources.slice(0, 3);
+  const [popular, setPopular] = useState<Resource[]>(() => {
+    // Pick DBMS notes if available
+    const dbms = resources.filter((r) => r.subjectId.includes('dbms'));
+    return dbms.length >= 3 ? dbms.slice(0, 3) : resources.slice(0, 3);
+  });
+
+  useEffect(() => {
+    fetchResources().then((data) => {
+      if (data && data.length > 0) {
+        setPopular(data.slice(0, 3));
+      }
+    });
+  }, []);
 
   return (
     <section className="section bg-[var(--bg)]">
@@ -53,13 +68,16 @@ export function PopularResources() {
               {/* Actions */}
               <div className="pt-4 border-t border-[var(--bd-subtle)] mt-4 flex items-center justify-between">
                 <span className="text-[10px] font-mono text-[var(--text-3)]">{r.subjectName}</span>
-                <Link
-                  href="/resources"
-                  className="btn btn-primary btn-sm flex items-center gap-1 text-xs"
+                <a
+                  href={r.url && r.url !== '#demo' ? formatGoogleDriveUrl(r.url) : `/resources`}
+                  target={r.url && r.url !== '#demo' ? '_blank' : undefined}
+                  rel={r.url && r.url !== '#demo' ? 'noopener noreferrer' : undefined}
+                  className="btn btn-primary btn-sm flex items-center gap-1.5 text-xs font-semibold no-underline cursor-pointer"
+                  title={`View ${r.title}`}
                 >
                   <BookOpen size={12} />
                   <span>View Note</span>
-                </Link>
+                </a>
               </div>
             </div>
           ))}

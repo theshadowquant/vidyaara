@@ -6,14 +6,16 @@ import { formatBranchName } from '@/data/universities';
 import { formatGoogleDriveUrl } from '@/lib/utils';
 
 export function PYQCard({ pyq }: { pyq: PYQ }) {
-  const handleOpenPaper = () => {
-    if (pyq.url && pyq.url !== '#demo') {
-      const targetUrl = formatGoogleDriveUrl(pyq.url);
-      window.open(targetUrl, '_blank', 'noopener,noreferrer');
-    } else {
-      alert('This is a demo paper. In production, your PDF link opens automatically!');
+  const getPaperUrl = () => {
+    if (pyq.url && pyq.url !== '#demo' && !pyq.url.startsWith('#')) {
+      return formatGoogleDriveUrl(pyq.url);
     }
+    return `https://www.google.com/search?q=${encodeURIComponent(
+      `VTU ${pyq.subjectCode} ${pyq.subjectName} ${pyq.year} ${pyq.examType} question paper PDF`
+    )}`;
   };
+
+  const targetUrl = getPaperUrl();
 
   return (
     <div className="card p-4 hover:border-[var(--brand-violet)] transition-all flex items-center justify-between gap-4">
@@ -42,22 +44,25 @@ export function PYQCard({ pyq }: { pyq: PYQ }) {
 
       {/* Action triggers */}
       <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={handleOpenPaper}
-          className="btn btn-secondary btn-sm p-2 rounded-lg"
-          title="Download PDF"
+        <a
+          href={targetUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn btn-secondary btn-sm p-2 rounded-lg no-underline inline-flex items-center justify-center"
+          title={`Download ${pyq.subjectName} PDF`}
         >
           <Download size={14} />
-        </button>
-        <button
-          type="button"
-          onClick={handleOpenPaper}
-          className="btn btn-primary btn-sm flex items-center gap-1 text-xs font-semibold"
+        </a>
+        <a
+          href={targetUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="btn btn-primary btn-sm flex items-center gap-1 text-xs font-semibold no-underline"
+          title={`Open ${pyq.subjectName} paper`}
         >
           <span>Open</span>
           <ExternalLink size={12} />
-        </button>
+        </a>
       </div>
     </div>
   );
