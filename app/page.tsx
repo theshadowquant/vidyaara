@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Hero } from '@/components/home/Hero';
+import { MobileQuickGrid } from '@/components/MobileQuickGrid';
 import { FeatureMarquee } from '@/components/home/FeatureMarquee';
 import { QuickTools } from '@/components/home/QuickTools';
 import { BranchSelector } from '@/components/home/BranchSelector';
@@ -13,6 +14,9 @@ export default function Home() {
     <div className="flex flex-col min-h-screen">
       {/* 1. HERO */}
       <Hero />
+
+      {/* 1.5 MOBILE QUICK-ACCESS GRID (Exclusively Mobile md:hidden) */}
+      <MobileQuickGrid />
 
       {/* 2. MOVING FEATURE STRIP (MARQUEE) */}
       <FeatureMarquee />

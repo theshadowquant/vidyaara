@@ -7,6 +7,7 @@ import { Footer } from "@/components/layout/Footer";
 import { VidyaaraaAiWidget } from "@/components/ai/VidyaaraaAiWidget";
 import { VisitorTracker } from "@/components/analytics/VisitorTracker";
 import { ServiceWorkerRegistrar } from "@/components/pwa/ServiceWorkerRegistrar";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta",
@@ -54,11 +55,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ServiceWorkerRegistrar />
           <VisitorTracker />
           <Navbar />
-          <main className="flex-grow pt-16" id="main-content">
+          <main className="flex-grow pt-16 pb-20 md:pb-0" id="main-content">
             {children}
           </main>
           <Footer />
           <VidyaaraaAiWidget />
+          <MobileBottomNav />
         </ThemeProvider>
       </body>
     </html>
