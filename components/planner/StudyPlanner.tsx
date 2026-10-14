@@ -9,12 +9,13 @@ import {
   CheckCircle2,
   RotateCcw,
   ArrowRight,
+  ArrowLeft,
   Loader,
-  Download,
   Printer,
   Bot,
   Lightbulb,
   FileDown,
+  Layers,
 } from 'lucide-react';
 import type { StudySubject, StudySession, StudyPlan } from '@/types';
 import { generateStudyPlan, savePlan, getAllPlans, toggleSessionComplete } from '@/lib/planner';
@@ -28,15 +29,21 @@ export function StudyPlanner() {
   const [newSubName, setNewSubName] = useState('');
   const [newSubDiff, setNewSubDiff] = useState<'easy' | 'medium' | 'hard'>('medium');
 
+  const [allPlans, setAllPlans] = useState<StudyPlan[]>([]);
   const [currentPlan, setCurrentPlan] = useState<StudyPlan | null>(null);
+  const [isCreatingNew, setIsCreatingNew] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isAiLoading, setIsAiLoading] = useState(false);
 
-  // Load existing plan on mount
+  // Load existing plans on mount
   useEffect(() => {
     const plans = getAllPlans();
+    setAllPlans(plans);
     if (plans.length > 0) {
       setCurrentPlan(plans[plans.length - 1]); // Show latest plan
+      setIsCreatingNew(false);
+    } else {
+      setIsCreatingNew(true);
     }
   }, []);
 
@@ -94,7 +101,10 @@ export function StudyPlanner() {
         };
 
         savePlan(plan);
+        const updated = getAllPlans();
+        setAllPlans(updated);
         setCurrentPlan(plan);
+        setIsCreatingNew(false);
         return;
       }
     } catch (err) {
@@ -141,7 +151,10 @@ export function StudyPlanner() {
       };
 
       savePlan(plan);
+      const updated = getAllPlans();
+      setAllPlans(updated);
       setCurrentPlan(plan);
+      setIsCreatingNew(false);
       setLoading(false);
       setIsAiLoading(false);
     }, 600);
@@ -152,6 +165,7 @@ export function StudyPlanner() {
     const updated = toggleSessionComplete(currentPlan.id, sessionId);
     if (updated) {
       setCurrentPlan(updated);
+      setAllPlans((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
     }
   };
 
@@ -166,16 +180,29 @@ export function StudyPlanner() {
     }
   };
 
-  const handleReset = () => {
-    if (confirm('Are you sure you want to reset and clear your current study planner?')) {
+  const handleSelectPlan = (planId: string) => {
+    const found = allPlans.find((p) => p.id === planId);
+    if (found) {
+      setCurrentPlan(found);
+      setIsCreatingNew(false);
+    }
+  };
+
+  const handleDeleteCurrentPlan = () => {
+    if (!currentPlan) return;
+    if (confirm('Are you sure you want to delete this study plan?')) {
+      const remaining = allPlans.filter((p) => p.id !== currentPlan.id);
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('vidyaaraa_plans');
+        localStorage.setItem('vidyaaraa_plans', JSON.stringify(remaining));
       }
-      setCurrentPlan(null);
-      setSubjectsList([]);
-      setExamDate('');
-      setDailyHours(2);
-      setTargetGoal('');
+      setAllPlans(remaining);
+      if (remaining.length > 0) {
+        setCurrentPlan(remaining[remaining.length - 1]);
+        setIsCreatingNew(false);
+      } else {
+        setCurrentPlan(null);
+        setIsCreatingNew(true);
+      }
     }
   };
 
@@ -184,18 +211,94 @@ export function StudyPlanner() {
   const completedSessions = currentPlan?.schedule.filter((s) => s.completed).length ?? 0;
   const progressPercent = totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0;
 
+  const isShowingForm = isCreatingNew || !currentPlan;
+
   return (
     <div className="space-y-8">
-      {!currentPlan ? (
+      {/* Top Planner Controls / Mode Switcher */}
+      {currentPlan && (
+        <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl bg-[var(--bg-raised)] border border-[var(--bd)]">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsCreatingNew(false)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                !isShowingForm
+                  ? 'bg-[var(--accent)] text-[#0F1729] shadow-sm'
+                  : 'text-[var(--text-3)] hover:text-[var(--text-1)]'
+              }`}
+            >
+              <Calendar size={14} />
+              <span>Active Plan</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSubjectsList([]);
+                setExamDate('');
+                setTargetGoal('');
+                setDailyHours(2);
+                setIsCreatingNew(true);
+              }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                isShowingForm
+                  ? 'bg-[var(--accent)] text-[#0F1729] shadow-sm'
+                  : 'text-[var(--text-3)] hover:text-[var(--text-1)]'
+              }`}
+            >
+              <Plus size={14} />
+              <span>+ Create New Plan</span>
+            </button>
+          </div>
+
+          {/* If multiple plans exist, show quick switcher */}
+          {allPlans.length > 1 && (
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-[11px] font-semibold text-[var(--text-3)] flex items-center gap-1">
+                <Layers size={13} />
+                Switch Plan:
+              </span>
+              <select
+                className="select text-xs py-1 px-2.5 bg-[var(--bg-overlay)] border border-[var(--bd)] rounded-lg"
+                value={currentPlan.id}
+                onChange={(e) => handleSelectPlan(e.target.value)}
+              >
+                {allPlans.map((p, idx) => (
+                  <option key={p.id} value={p.id}>
+                    Exam {p.examDate} ({p.subjects.length} subjects)
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
+      )}
+
+      {isShowingForm ? (
+        /* CREATE / GENERATE PLAN FORM */
         <div className="card p-6 md:p-8 space-y-6">
-          <div className="space-y-1">
-            <h2 className="text-xl font-extrabold text-[var(--text-1)] flex items-center gap-2">
-              <Sparkles size={18} className="text-[var(--accent)]" />
-              Generate Study Plan with ChatGPT AI
-            </h2>
-            <p className="text-xs text-[var(--text-2)]">
-              Specify your exam schedule, target subjects, and revision goals. ChatGPT will synthesize an optimal day-by-day revision roadmap.
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--bd)] pb-4">
+            <div className="space-y-1">
+              <h2 className="text-xl font-extrabold text-[var(--text-1)] flex items-center gap-2">
+                <Sparkles size={18} className="text-[var(--accent)]" />
+                Generate Study Plan with ChatGPT AI
+              </h2>
+              <p className="text-xs text-[var(--text-2)]">
+                Specify your exam schedule, subjects, and study target. ChatGPT will synthesize a custom revision roadmap.
+              </p>
+            </div>
+
+            {currentPlan && (
+              <button
+                type="button"
+                onClick={() => setIsCreatingNew(false)}
+                className="btn btn-ghost btn-sm text-xs flex items-center gap-1 self-start sm:self-center text-[var(--text-2)] hover:text-[var(--text-1)]"
+              >
+                <ArrowLeft size={14} />
+                <span>Back to Active Plan</span>
+              </button>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -355,7 +458,7 @@ export function StudyPlanner() {
           </div>
         </div>
       ) : (
-        /* Generated Schedule view */
+        /* ACTIVE GENERATED SCHEDULE VIEW */
         <div className="space-y-6">
           {/* Dashboard Summary Info & Actions */}
           <div className="card p-5 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -376,7 +479,7 @@ export function StudyPlanner() {
               </p>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-2.5">
               {/* Progress indicator */}
               <div className="text-center md:text-right pr-2">
                 <span className="text-[10px] uppercase font-bold tracking-wider text-[var(--text-3)] block">
@@ -395,6 +498,23 @@ export function StudyPlanner() {
                   {completedSessions} of {totalSessions} slots finished
                 </span>
               </div>
+
+              {/* CREATE NEW PLAN BUTTON */}
+              <button
+                type="button"
+                onClick={() => {
+                  setSubjectsList([]);
+                  setExamDate('');
+                  setTargetGoal('');
+                  setDailyHours(2);
+                  setIsCreatingNew(true);
+                }}
+                className="btn btn-secondary btn-sm flex items-center gap-1.5 text-xs font-semibold"
+                title="Create another revision plan"
+              >
+                <Plus size={14} className="text-[var(--accent)]" />
+                <span>New Plan</span>
+              </button>
 
               {/* PDF EXPORT BUTTON */}
               <button
@@ -417,14 +537,14 @@ export function StudyPlanner() {
                 <Printer size={14} />
               </button>
 
-              {/* Reset Plan */}
+              {/* Delete Plan */}
               <button
                 type="button"
-                onClick={handleReset}
+                onClick={handleDeleteCurrentPlan}
                 className="btn btn-secondary btn-sm p-2 rounded-lg"
-                title="Reset & Delete Plan"
+                title="Delete this study plan"
               >
-                <RotateCcw size={14} className="text-red-500" />
+                <Trash2 size={14} className="text-red-500" />
               </button>
             </div>
           </div>
