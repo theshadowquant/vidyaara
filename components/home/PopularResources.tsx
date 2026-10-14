@@ -3,17 +3,12 @@
 import Link from 'next/link';
 import { ArrowRight, BookOpen } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { resources } from '@/data/resources';
 import { fetchResources } from '@/lib/db/resources';
 import { formatGoogleDriveUrl } from '@/lib/utils';
 import type { Resource } from '@/types';
 
 export function PopularResources() {
-  const [popular, setPopular] = useState<Resource[]>(() => {
-    // Pick DBMS notes if available
-    const dbms = resources.filter((r) => r.subjectId.includes('dbms'));
-    return dbms.length >= 3 ? dbms.slice(0, 3) : resources.slice(0, 3);
-  });
+  const [popular, setPopular] = useState<Resource[]>([]);
 
   useEffect(() => {
     fetchResources().then((data) => {
@@ -22,6 +17,10 @@ export function PopularResources() {
       }
     });
   }, []);
+
+  if (popular.length === 0) {
+    return null;
+  }
 
   return (
     <section className="section bg-[var(--bg)]">
