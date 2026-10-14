@@ -4,10 +4,10 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
+  Home,
   BookOpen,
-  FileText,
   Sparkles,
-  Calculator,
+  FileText,
   Briefcase,
 } from 'lucide-react';
 
@@ -21,29 +21,29 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   {
+    label: 'Home',
+    href: '/',
+    icon: Home,
+    ariaLabel: 'Go to Vidyaaraa Home',
+  },
+  {
     label: 'Notes',
     href: '/resources',
     icon: BookOpen,
     ariaLabel: 'Access Notes and Study Resources',
   },
   {
-    label: 'PYQs',
-    href: '/pyqs',
-    icon: FileText,
-    ariaLabel: 'Access Previous Year Question Papers',
-  },
-  {
-    label: 'Vidyaaraa AI',
+    label: 'AI Copilot',
     href: '/ai',
     icon: Sparkles,
     isCenter: true,
     ariaLabel: 'Launch Vidyaaraa AI Copilot',
   },
   {
-    label: 'Calculators',
-    href: '/calculators',
-    icon: Calculator,
-    ariaLabel: 'Calculate VTU SGPA and CGPA',
+    label: 'PYQs',
+    href: '/pyqs',
+    icon: FileText,
+    ariaLabel: 'Access Previous Year Question Papers',
   },
   {
     label: 'Placement',
@@ -65,25 +65,26 @@ export function MobileBottomNav() {
       <nav
         role="navigation"
         aria-label="Mobile Primary Navigation"
-        className="pointer-events-auto w-full h-16 backdrop-blur-xl bg-white/95 dark:bg-zinc-950/95 border-t border-gray-200/80 dark:border-zinc-800/80 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.45)] px-3 pb-[env(safe-area-inset-bottom,0px)]"
+        className="pointer-events-auto w-full h-16 backdrop-blur-xl bg-white/95 dark:bg-zinc-950/95 border-t border-gray-200/80 dark:border-zinc-800/80 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.45)] px-2 pb-[env(safe-area-inset-bottom,0px)]"
       >
         <div className="max-w-md mx-auto grid grid-cols-5 h-full items-center justify-items-center relative">
           {navItems.map((item) => {
             const isActive =
-              pathname === item.href ||
-              (item.href !== '/' && pathname.startsWith(item.href));
+              item.href === '/'
+                ? pathname === '/'
+                : pathname.startsWith(item.href);
 
             if (item.isCenter) {
               return (
                 <div
                   key={item.href}
-                  className="flex flex-col items-center justify-end relative -top-5 h-full"
+                  className="flex flex-col items-center justify-center h-full relative"
                 >
                   <Link
                     href={item.href}
                     aria-label={item.ariaLabel}
                     aria-current={isActive ? 'page' : undefined}
-                    className="group flex flex-col items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded-full active:scale-95 transition-transform duration-150"
+                    className="group relative -top-3.5 flex flex-col items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded-full active:scale-95 transition-transform duration-150"
                   >
                     {/* Elevated Circular Action Button */}
                     <div
@@ -94,18 +95,18 @@ export function MobileBottomNav() {
                       }`}
                     >
                       <item.icon size={22} className="stroke-[2.2] animate-pulse" />
-                      <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-white dark:border-zinc-950" />
+                      <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 border-2 border-white dark:border-zinc-950" />
                     </div>
 
                     {/* Cleanly Placed Label Beneath Circle */}
                     <span
-                      className={`text-[10px] font-semibold mt-1 tracking-tight transition-colors ${
+                      className={`text-[10px] font-semibold mt-1 tracking-tight whitespace-nowrap transition-colors ${
                         isActive
                           ? 'text-emerald-600 dark:text-emerald-400 font-extrabold'
                           : 'text-gray-700 dark:text-zinc-300'
                       }`}
                     >
-                      AI
+                      {item.label}
                     </span>
                   </Link>
                 </div>
