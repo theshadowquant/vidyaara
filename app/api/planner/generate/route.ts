@@ -3,7 +3,8 @@ import OpenAI from 'openai';
 import { generateStudyPlan } from '@/lib/planner';
 import type { StudySubject, StudySession } from '@/types';
 
-export const runtime = 'edge';
+export const runtime = 'nodejs';
+export const maxDuration = 60;
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || 'dummy-key',
