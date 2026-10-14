@@ -65,9 +65,9 @@ export function MobileBottomNav() {
       <nav
         role="navigation"
         aria-label="Mobile Primary Navigation"
-        className="pointer-events-auto w-full backdrop-blur-xl bg-white/90 dark:bg-zinc-950/90 border-t border-gray-200/80 dark:border-zinc-800/80 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.45)] px-2 pt-1 pb-[calc(0.35rem+env(safe-area-inset-bottom,0px))]"
+        className="pointer-events-auto w-full h-16 backdrop-blur-xl bg-white/95 dark:bg-zinc-950/95 border-t border-gray-200/80 dark:border-zinc-800/80 shadow-[0_-8px_30px_rgba(0,0,0,0.08)] dark:shadow-[0_-8px_30px_rgba(0,0,0,0.45)] px-3 pb-[env(safe-area-inset-bottom,0px)]"
       >
-        <div className="max-w-md mx-auto grid grid-cols-5 items-end justify-items-center relative">
+        <div className="max-w-md mx-auto grid grid-cols-5 h-full items-center justify-items-center relative">
           {navItems.map((item) => {
             const isActive =
               pathname === item.href ||
@@ -75,27 +75,31 @@ export function MobileBottomNav() {
 
             if (item.isCenter) {
               return (
-                <div key={item.href} className="relative flex flex-col items-center">
+                <div
+                  key={item.href}
+                  className="flex flex-col items-center justify-end relative -top-5 h-full"
+                >
                   <Link
                     href={item.href}
                     aria-label={item.ariaLabel}
                     aria-current={isActive ? 'page' : undefined}
-                    className="group relative -top-3 flex flex-col items-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded-full"
+                    className="group flex flex-col items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] rounded-full active:scale-95 transition-transform duration-150"
                   >
-                    {/* Floating Elevated Pill / Circle */}
+                    {/* Elevated Circular Action Button */}
                     <div
-                      className={`relative w-12 h-12 rounded-full flex items-center justify-center transition-all duration-200 active:scale-90 shadow-lg ${
+                      className={`relative w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-all duration-150 group-hover:scale-105 ${
                         isActive
                           ? 'bg-gradient-to-tr from-emerald-500 via-[#00D4AA] to-teal-300 text-slate-950 shadow-emerald-500/40 ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-white dark:ring-offset-zinc-950'
-                          : 'bg-gradient-to-tr from-[#00D4AA] to-emerald-500 text-slate-950 shadow-emerald-500/30 hover:scale-105'
+                          : 'bg-gradient-to-tr from-[#00D4AA] to-emerald-500 text-slate-950 shadow-emerald-500/30'
                       }`}
                     >
-                      <item.icon size={20} className="stroke-[2.2] animate-pulse" />
+                      <item.icon size={22} className="stroke-[2.2] animate-pulse" />
                       <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-white dark:border-zinc-950" />
                     </div>
 
+                    {/* Cleanly Placed Label Beneath Circle */}
                     <span
-                      className={`text-[10px] font-bold tracking-tight mt-[-6px] transition-colors ${
+                      className={`text-[10px] font-semibold mt-1 tracking-tight transition-colors ${
                         isActive
                           ? 'text-emerald-600 dark:text-emerald-400 font-extrabold'
                           : 'text-gray-700 dark:text-zinc-300'
@@ -116,13 +120,13 @@ export function MobileBottomNav() {
                 href={item.href}
                 aria-label={item.ariaLabel}
                 aria-current={isActive ? 'page' : undefined}
-                className={`flex flex-col items-center justify-center py-1 px-1.5 w-full rounded-xl transition-all duration-150 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
+                className={`flex flex-col items-center justify-center h-full w-full rounded-xl transition-all duration-150 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
                   isActive
                     ? 'text-[var(--accent)] dark:text-emerald-400 font-semibold'
                     : 'text-gray-500 dark:text-zinc-400 hover:text-gray-900 dark:hover:text-zinc-200'
                 }`}
               >
-                <div className="relative">
+                <div className="relative flex items-center justify-center">
                   <Icon
                     size={20}
                     className={`transition-transform duration-150 stroke-[1.8] ${
@@ -130,7 +134,7 @@ export function MobileBottomNav() {
                     }`}
                   />
                   {isActive && (
-                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[var(--accent)] dark:bg-emerald-400" />
+                    <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[var(--accent)] dark:bg-emerald-400" />
                   )}
                 </div>
 

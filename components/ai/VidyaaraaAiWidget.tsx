@@ -249,7 +249,7 @@ export function VidyaaraaAiWidget() {
   return (
     <aside
       aria-label="Vidyaaraa AI Assistant"
-      className="fixed bottom-20 right-4 md:bottom-5 md:right-5 z-40 md:z-50 flex flex-col items-end"
+      className="hidden md:flex fixed bottom-6 right-6 z-50 flex-col items-end"
     >
       {/* 1. EXPANDED BORDERBEAM CHATBOT PANEL */}
       {isOpen && (
