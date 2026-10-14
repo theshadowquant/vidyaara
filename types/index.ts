@@ -116,6 +116,7 @@ export interface StudySession {
   day: string;
   date: string;
   completed: boolean;
+  focusTopics?: string;
 }
 
 export interface StudyPlan {
@@ -125,6 +126,9 @@ export interface StudyPlan {
   subjects: StudySubject[];
   schedule: StudySession[];
   createdAt: string;
+  aiStrategy?: string;
+  tips?: string[];
+  targetGoal?: string;
 }
 
 // ---- Quiz Types ----

@@ -1,0 +1,169 @@
+import { NextResponse } from 'next/server';
+import OpenAI from 'openai';
+import { generateStudyPlan } from '@/lib/planner';
+import type { StudySubject, StudySession } from '@/types';
+
+export const runtime = 'edge';
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || 'dummy-key',
+});
+
+interface GeneratePlannerPayload {
+  examDate: string;
+  dailyHours: number;
+  subjects: StudySubject[];
+  targetGoal?: string;
+}
+
+export async function POST(req: Request) {
+  try {
+    const body: GeneratePlannerPayload = await req.json();
+    const { examDate, dailyHours, subjects, targetGoal } = body;
+
+    if (!examDate || !subjects || !Array.isArray(subjects) || subjects.length === 0) {
+      return NextResponse.json(
+        { error: 'Exam target date and at least one subject are required.' },
+        { status: 400 }
+      );
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const exam = new Date(examDate);
+    exam.setHours(0, 0, 0, 0);
+    const daysAvailable = Math.max(
+      1,
+      Math.floor((exam.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+    );
+
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (apiKey && apiKey !== 'dummy-key') {
+      try {
+        const systemPrompt = `You are Vidyaaraa AI Study Planner, an elite academic strategist for VTU and engineering college exams.
+A student needs an optimized, realistic day-by-day revision schedule until their target exam date.
+
+Parameters:
+- Today's Date: ${today.toISOString().split('T')[0]}
+- Target Exam Date: ${examDate} (${daysAvailable} days available)
+- Daily Study Budget: ${dailyHours} hours/day
+- Student's Exam Target/Goal: ${targetGoal ? targetGoal : 'Score 8.5+ SGPA and clear internals/externals'}
+- Subjects:
+${subjects.map((s) => `  * ${s.name} (Difficulty: ${s.difficulty})`).join('\n')}
+
+Rules:
+1. Distribute revision hours proportionally: Allocate more focus to "hard" subjects while maintaining consistent touchpoints for "medium" and "easy" subjects.
+2. Structure sessions logically (e.g. Concept Review -> Numericals/Derivations -> Important 10-Mark Questions -> PYQ & Mock Testing).
+3. Keep individual subject sessions between 1.0 and 2.5 hours so the student avoids cognitive fatigue.
+4. Return between ${Math.min(daysAvailable, 20)} and ${Math.min(daysAvailable * 2, 40)} total schedule slots spanning across the available days.
+5. Provide actionable "focusTopics" for every slot (e.g., "Module 1 Fundamentals & Key Definitions", "Module 2 Algorithms & Time Complexities", "Past 3-Year VTU Numerical Problems", "Full Syllabus Flashcard & Formula Review").
+
+Respond with pure JSON conforming strictly to this format:
+{
+  "aiStrategy": "A 2-3 sentence strategic roadmap tailored to this student's exam target and subject difficulties.",
+  "tips": [
+    "Tip 1...",
+    "Tip 2...",
+    "Tip 3...",
+    "Tip 4..."
+  ],
+  "schedule": [
+    {
+      "day": "Monday",
+      "date": "YYYY-MM-DD",
+      "subjectName": "...",
+      "durationHours": 2,
+      "focusTopics": "..."
+    }
+  ]
+}`;
+
+        const completion = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are an expert engineering study planner. Respond ONLY with valid, raw JSON without markdown code fences.',
+            },
+            {
+              role: 'user',
+              content: systemPrompt,
+            },
+          ],
+          temperature: 0.5,
+          response_format: { type: 'json_object' },
+        });
+
+        const rawContent = completion.choices[0]?.message?.content?.trim();
+        if (rawContent) {
+          const parsed = JSON.parse(rawContent);
+          if (Array.isArray(parsed.schedule) && parsed.schedule.length > 0) {
+            const normalizedSchedule: StudySession[] = parsed.schedule.map(
+              (item: any, idx: number) => {
+                const matchedSubject = subjects.find(
+                  (s) => s.name.toLowerCase() === (item.subjectName || '').toLowerCase()
+                );
+                return {
+                  id: `session-ai-${idx + 1}-${Date.now()}`,
+                  subjectId: matchedSubject ? matchedSubject.id : subjects[0].id,
+                  subjectName: item.subjectName || subjects[0].name,
+                  durationHours: Number(item.durationHours) || Math.min(dailyHours, 2),
+                  day: item.day || 'Day',
+                  date: item.date || examDate,
+                  completed: false,
+                  focusTopics: item.focusTopics || 'Comprehensive module revision and problem solving',
+                };
+              }
+            );
+
+            return NextResponse.json({
+              success: true,
+              source: 'chatgpt',
+              aiStrategy:
+                parsed.aiStrategy ||
+                'Personalized revision roadmap generated by Vidyaaraa AI powered by ChatGPT.',
+              tips: parsed.tips || [
+                'Solve at least two 10-mark questions without looking at solutions.',
+                'Maintain a one-page formula sheet for rapid morning revisions.',
+                'Take a 5-minute active rest break every 50 minutes of deep study.',
+              ],
+              schedule: normalizedSchedule,
+            });
+          }
+        }
+      } catch (aiError) {
+        console.error('ChatGPT study plan generation fallback:', aiError);
+      }
+    }
+
+    // Heuristic fallback if AI unavailable or offline
+    const fallbackSchedule = generateStudyPlan({
+      examDate,
+      dailyHours,
+      subjects,
+    });
+
+    return NextResponse.json({
+      success: true,
+      source: 'algorithmic',
+      aiStrategy:
+        'Balanced spaced-repetition plan calculated proportionally according to subject difficulty weights.',
+      tips: [
+        'Prioritize high-yield modules first before diving into elective topics.',
+        'Review handwritten notes before attempting previous year model question papers.',
+        'Test yourself under real exam conditions 3 days prior to your target exam date.',
+      ],
+      schedule: fallbackSchedule.map((s) => ({
+        ...s,
+        focusTopics: `Core module concepts, key diagrams and 10-mark VTU questions for ${s.subjectName}`,
+      })),
+    });
+  } catch (error: any) {
+    console.error('Study plan route error:', error);
+    return NextResponse.json(
+      { error: error?.message || 'Failed to generate study plan' },
+      { status: 500 }
+    );
+  }
+}
