@@ -29,13 +29,9 @@ export function Footer() {
   return (
     <footer
       role="contentinfo"
-      style={{
-        borderTop: '1px solid var(--bd)',
-        backgroundColor: 'var(--bg-raised)',
-        marginTop: 'auto',
-      }}
+      className="w-full border-t border-[var(--bd)] bg-[var(--bg-raised)] mt-auto pb-28 md:pb-6"
     >
-      <div className="container-cf" style={{ paddingTop: '3rem', paddingBottom: '2rem' }}>
+      <div className="container-cf pt-12 pb-2">
         <div
           style={{
             display: 'grid',
