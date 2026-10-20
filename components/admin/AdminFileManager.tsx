@@ -342,9 +342,9 @@ export function AdminFileManager() {
           type: manualType,
           description: manualDesc.trim(),
           folderId: currentFolderId,
-          subjectId: currentFolder?.slug || 'general',
+          subjectId: '',
           subjectName: currentFolder?.name || 'General',
-          branchId: 'general',
+          branchId: 'other',
           semester: 1,
           universityId: 'vtu',
           isDemo: false,
@@ -422,19 +422,30 @@ export function AdminFileManager() {
 
         // Upload file or create resource record
         const fileCleanTitle = item.name.replace(/\.[^/.]+$/, '');
-        const mockBlobUrl = item.file
-          ? URL.createObjectURL(item.file)
-          : item.url || '#';
+        // Create persistent data URL for files up to 5MB, or fallback to blob url
+        let persistentFileUrl = item.url || '#';
+        if (item.file) {
+          if (item.file.size <= 5 * 1024 * 1024) {
+            persistentFileUrl = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onloadend = () => resolve(reader.result as string);
+              reader.onerror = () => resolve(URL.createObjectURL(item.file!));
+              reader.readAsDataURL(item.file!);
+            });
+          } else {
+            persistentFileUrl = URL.createObjectURL(item.file);
+          }
+        }
 
         const created = await createResource({
           title: fileCleanTitle,
-          url: mockBlobUrl,
+          url: persistentFileUrl,
           type: item.type,
           description: `Uploaded document: ${item.name}`,
           folderId: targetFolderForFile,
-          subjectId: currentFolder?.slug || 'general',
+          subjectId: '',
           subjectName: currentFolder?.name || 'General Modules',
-          branchId: 'general',
+          branchId: 'other',
           semester: 1,
           universityId: 'vtu',
           fileName: item.name,

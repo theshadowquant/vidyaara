@@ -67,10 +67,19 @@ export async function fetchFolders(includeArchived = false): Promise<Folder[]> {
     return list;
   }
 
-  const folders = (data as any[]).map(mapDbFolderToFolder);
+  const dbFolders = (data as any[]).map(mapDbFolderToFolder);
+  const local = getLocalFolders();
+  const dbIds = new Set(dbFolders.map((f) => f.id));
+  const localOnly = local.filter((f) => !dbIds.has(f.id));
+  const allFolders = [...dbFolders, ...localOnly];
+
   // Keep local backup synchronized
-  saveLocalFolders(folders);
-  return folders;
+  saveLocalFolders(allFolders);
+
+  if (!includeArchived) {
+    return allFolders.filter((f) => f.status !== 'archived');
+  }
+  return allFolders;
 }
 
 /**

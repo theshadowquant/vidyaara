@@ -112,7 +112,24 @@ export async function fetchResources(filters?: ResourceFilters): Promise<Resourc
     return [...STATIC_RESOURCES, ...getLocalResources()];
   }
 
-  return (data as any[]).map(mapDbResourceToResource);
+  const dbResources = (data as any[]).map(mapDbResourceToResource);
+  const localResources = getLocalResources();
+
+  // Merge any local resources not yet present in DB so nothing disappears on reload
+  const dbIds = new Set(dbResources.map((r) => r.id));
+  const localOnly = localResources.filter((r) => !dbIds.has(r.id));
+  const combined = [...dbResources, ...localOnly];
+
+  let result = combined;
+  if (filters?.folderId !== undefined) {
+    if (filters.folderId === null) {
+      result = result.filter((r) => !r.folderId);
+    } else {
+      result = result.filter((r) => r.folderId === filters.folderId);
+    }
+  }
+
+  return result;
 }
 
 export async function createResource(resource: Omit<Resource, 'id' | 'uploadedAt'>): Promise<Resource | null> {
@@ -132,11 +149,12 @@ export async function createResource(resource: Omit<Resource, 'id' | 'uploadedAt
   }
 
   const client = browserClient();
+  const safeBranch = resource.branchId && resource.branchId !== 'general' ? resource.branchId : 'other';
   const insertPayload: any = {
     folder_id: resource.folderId || null,
-    subject_id: resource.subjectId && resource.subjectId.trim() !== '' ? resource.subjectId.trim() : null,
+    subject_id: null,
     subject_name: resource.subjectName || 'General',
-    branch_id: resource.branchId || 'general',
+    branch_id: safeBranch,
     semester: resource.semester || 1,
     university_id: resource.universityId || 'vtu',
     type: resource.type || 'notes',
@@ -156,7 +174,7 @@ export async function createResource(resource: Omit<Resource, 'id' | 'uploadedAt
     .single();
 
   if (error) {
-    console.error('Error creating resource:', error);
+    console.error('Error creating resource in Supabase:', error);
     // Fallback save to local storage
     const fallbackRes: Resource = {
       ...resource,
@@ -167,7 +185,9 @@ export async function createResource(resource: Omit<Resource, 'id' | 'uploadedAt
     return fallbackRes;
   }
 
-  return mapDbResourceToResource(data);
+  const created = mapDbResourceToResource(data);
+  saveLocalResources([created, ...getLocalResources().filter((r) => r.id !== created.id)]);
+  return created;
 }
 
 export async function updateResource(id: string, updates: Partial<Resource>): Promise<boolean> {
