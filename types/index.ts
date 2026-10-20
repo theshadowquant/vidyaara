@@ -40,8 +40,22 @@ export type ResourceType =
   | 'syllabus'
   | 'reference';
 
+export interface Folder {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  parentId?: string | null;
+  sortOrder?: number;
+  icon?: string;
+  status: 'active' | 'archived';
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Resource {
   id: string;
+  folderId?: string | null;
   subjectId: string;
   subjectName: string;
   branchId: string;
@@ -51,6 +65,9 @@ export interface Resource {
   title: string;
   description: string;
   url: string;
+  fileName?: string;
+  fileSizeBytes?: number;
+  mimeType?: string;
   isDemo: boolean;
   uploadedAt: string;
 }

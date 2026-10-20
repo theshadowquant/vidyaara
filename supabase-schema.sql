@@ -3,9 +3,27 @@
 -- Run this in Supabase SQL Editor: https://supabase.com/dashboard/project/_/sql
 -- ============================================================
 
--- 1. Resources Table (Notes, PYQs, Lab Manuals, Google Drive Links)
+-- 1. Dynamic Folders Table (Admin-controlled folder hierarchy)
+CREATE TABLE IF NOT EXISTS public.folders (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  slug TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  parent_id TEXT REFERENCES public.folders(id) ON DELETE CASCADE,
+  sort_order INT DEFAULT 0,
+  icon TEXT DEFAULT 'folder',
+  status TEXT DEFAULT 'active' CHECK (status IN ('active', 'archived')),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_folders_parent_id ON public.folders(parent_id);
+CREATE INDEX IF NOT EXISTS idx_folders_status ON public.folders(status);
+
+-- 2. Resources Table (Notes, PYQs, Lab Manuals, Google Drive Links)
 CREATE TABLE IF NOT EXISTS public.resources (
   id TEXT PRIMARY KEY,
+  folder_id TEXT REFERENCES public.folders(id) ON DELETE SET NULL,
   "subjectId" TEXT,
   "subjectName" TEXT NOT NULL,
   "branchId" TEXT NOT NULL,
@@ -15,9 +33,18 @@ CREATE TABLE IF NOT EXISTS public.resources (
   title TEXT NOT NULL,
   description TEXT,
   url TEXT NOT NULL,
+  file_name TEXT,
+  file_size_bytes BIGINT,
+  mime_type TEXT,
   "isDemo" BOOLEAN DEFAULT false,
   "uploadedAt" TEXT NOT NULL
 );
+
+ALTER TABLE public.resources ADD COLUMN IF NOT EXISTS folder_id TEXT REFERENCES public.folders(id) ON DELETE SET NULL;
+ALTER TABLE public.resources ADD COLUMN IF NOT EXISTS file_name TEXT;
+ALTER TABLE public.resources ADD COLUMN IF NOT EXISTS file_size_bytes BIGINT;
+ALTER TABLE public.resources ADD COLUMN IF NOT EXISTS mime_type TEXT;
+CREATE INDEX IF NOT EXISTS idx_resources_folder_id ON public.resources(folder_id);
 
 -- 2. Student Note Requests Table
 CREATE TABLE IF NOT EXISTS public.note_requests (

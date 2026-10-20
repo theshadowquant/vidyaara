@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { fetchResources } from '@/lib/db/resources';
-import type { Resource } from '@/types';
+import { fetchFolders } from '@/lib/db/folders';
+import type { Resource, Folder } from '@/types';
 import {
   buildVirtualFolderTree,
   getNodeByPath,
@@ -23,6 +24,7 @@ export function NotesExplorerContainer() {
   const searchParams = useSearchParams();
 
   const [allResources, setAllResources] = useState<Resource[]>([]);
+  const [foldersList, setFoldersList] = useState<Folder[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -37,17 +39,18 @@ export function NotesExplorerContainer() {
       .filter(Boolean);
   }, [currentPathString]);
 
-  // Load resources from Supabase
+  // Load resources and dynamic folders from Supabase
   useEffect(() => {
     let mounted = true;
-    fetchResources()
-      .then((data) => {
+    Promise.all([fetchResources(), fetchFolders()])
+      .then(([resData, foldersData]) => {
         if (mounted) {
-          setAllResources(data || []);
+          setAllResources(resData || []);
+          setFoldersList(foldersData || []);
         }
       })
       .catch((err) => {
-        console.error('Failed to load notes resources from database:', err);
+        console.error('Failed to load notes resources and folders from database:', err);
       })
       .finally(() => {
         if (mounted) {
@@ -83,10 +86,10 @@ export function NotesExplorerContainer() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Build tree from real database resources
+  // Build tree from real database resources and dynamic folders
   const vfsRoot = useMemo(() => {
-    return buildVirtualFolderTree(allResources);
-  }, [allResources]);
+    return buildVirtualFolderTree(allResources, foldersList);
+  }, [allResources, foldersList]);
 
   // Resolve current node
   const currentNode = useMemo(() => {

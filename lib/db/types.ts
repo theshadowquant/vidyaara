@@ -93,9 +93,49 @@ export interface Database {
         };
         Relationships: [];
       };
+      folders: {
+        Row: {
+          id: string;
+          name: string;
+          slug: string;
+          description: string;
+          parent_id: string | null;
+          sort_order: number;
+          icon: string;
+          status: 'active' | 'archived';
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          name: string;
+          slug: string;
+          description?: string;
+          parent_id?: string | null;
+          sort_order?: number;
+          icon?: string;
+          status?: 'active' | 'archived';
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          slug?: string;
+          description?: string;
+          parent_id?: string | null;
+          sort_order?: number;
+          icon?: string;
+          status?: 'active' | 'archived';
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       resources: {
         Row: {
           id: string;
+          folder_id?: string | null;
           subject_id: string | null;
           subject_name: string;
           branch_id: string;
@@ -105,12 +145,16 @@ export interface Database {
           title: string;
           description: string;
           url: string;
+          file_name?: string | null;
+          file_size_bytes?: number | null;
+          mime_type?: string | null;
           is_demo: boolean;
           uploaded_at: string;
           search_vector?: string;
         };
         Insert: {
           id?: string;
+          folder_id?: string | null;
           subject_id?: string | null;
           subject_name: string;
           branch_id: string;
@@ -120,12 +164,16 @@ export interface Database {
           title: string;
           description?: string;
           url: string;
+          file_name?: string | null;
+          file_size_bytes?: number | null;
+          mime_type?: string | null;
           is_demo?: boolean;
           uploaded_at?: string;
           search_vector?: string;
         };
         Update: {
           id?: string;
+          folder_id?: string | null;
           subject_id?: string | null;
           subject_name?: string;
           branch_id?: string;
@@ -135,6 +183,9 @@ export interface Database {
           title?: string;
           description?: string;
           url?: string;
+          file_name?: string | null;
+          file_size_bytes?: number | null;
+          mime_type?: string | null;
           is_demo?: boolean;
           uploaded_at?: string;
         };
@@ -363,6 +414,7 @@ export interface Database {
   };
 }
 
+export type DbFolder            = Database['public']['Tables']['folders']['Row'];
 export type DbResource          = Database['public']['Tables']['resources']['Row'];
 export type DbPYQ               = Database['public']['Tables']['pyqs']['Row'];
 export type DbNoteRequest       = Database['public']['Tables']['note_requests']['Row'];

@@ -1,4 +1,4 @@
-import type { Resource } from '@/types';
+import type { Resource, Folder } from '@/types';
 import { branches, semesters, formatBranchName } from '@/data/universities';
 
 export interface ExplorerNode {
@@ -6,9 +6,10 @@ export interface ExplorerNode {
   name: string;
   slug: string;
   type: 'folder' | 'file';
-  category: 'root' | 'branch' | 'semester' | 'subject' | 'type';
+  category: 'root' | 'branch' | 'semester' | 'subject' | 'type' | 'custom';
   resourceCount: number;
   resource?: Resource;
+  folderId?: string;
   path: string[];
   children: ExplorerNode[];
 }
@@ -38,11 +39,14 @@ export function slugify(text: string): string {
 }
 
 /**
- * Constructs the multi-tier virtual folder hierarchy from database records.
- * Hierarchy:
- * Root -> Branch -> Semester -> Subject -> Files
+ * Builds the Virtual Folder Tree.
+ * If dynamicFolders are provided by the administrator, builds the exact custom tree.
+ * Otherwise, falls back to the structured stream/semester layout.
  */
-export function buildVirtualFolderTree(resources: Resource[]): ExplorerNode {
+export function buildVirtualFolderTree(
+  resources: Resource[],
+  dynamicFolders: Folder[] = []
+): ExplorerNode {
   const rootNode: ExplorerNode = {
     id: 'root',
     name: 'Academic Library',
@@ -54,7 +58,107 @@ export function buildVirtualFolderTree(resources: Resource[]): ExplorerNode {
     children: [],
   };
 
-  // Group resources by branch
+  const activeFolders = dynamicFolders.filter((f) => f.status !== 'archived');
+
+  // If administrator has created dynamic folders, build tree directly from database folders
+  if (activeFolders.length > 0) {
+    const folderNodeMap = new Map<string, ExplorerNode>();
+
+    // 1. Create nodes for all dynamic folders
+    for (const f of activeFolders) {
+      folderNodeMap.set(f.id, {
+        id: f.id,
+        name: f.name,
+        slug: f.slug || slugify(f.name) || f.id,
+        type: 'folder',
+        category: 'custom',
+        resourceCount: 0,
+        folderId: f.id,
+        path: [], // will be computed once tree is linked
+        children: [],
+      });
+    }
+
+    // 2. Attach subfolders to their parents, or to rootNode if parentId is null or missing
+    for (const f of activeFolders) {
+      const node = folderNodeMap.get(f.id)!;
+      if (f.parentId && folderNodeMap.has(f.parentId)) {
+        folderNodeMap.get(f.parentId)!.children.push(node);
+      } else {
+        rootNode.children.push(node);
+      }
+    }
+
+    // 3. Attach resources to their assigned folder
+    const unassignedResources: Resource[] = [];
+    for (const r of resources) {
+      if (r.folderId && folderNodeMap.has(r.folderId)) {
+        const targetFolder = folderNodeMap.get(r.folderId)!;
+        const fileSlug = slugify(r.title) || r.id;
+        targetFolder.children.push({
+          id: r.id,
+          name: r.title,
+          slug: fileSlug,
+          type: 'file',
+          category: 'type',
+          resourceCount: 1,
+          resource: r,
+          path: [],
+          children: [],
+        });
+      } else {
+        unassignedResources.push(r);
+      }
+    }
+
+    // 4. If legacy resources without folder_id exist, group them under "Legacy Materials"
+    if (unassignedResources.length > 0) {
+      const legacyNode: ExplorerNode = {
+        id: 'legacy-resources',
+        name: 'General Academic Materials',
+        slug: 'general-academic-materials',
+        type: 'folder',
+        category: 'custom',
+        resourceCount: unassignedResources.length,
+        path: ['general-academic-materials'],
+        children: unassignedResources.map((r) => ({
+          id: r.id,
+          name: r.title,
+          slug: slugify(r.title) || r.id,
+          type: 'file',
+          category: 'type',
+          resourceCount: 1,
+          resource: r,
+          path: ['general-academic-materials', slugify(r.title) || r.id],
+          children: [],
+        })),
+      };
+      rootNode.children.push(legacyNode);
+    }
+
+    // 5. Recursively compute paths and accurate resource counts
+    function populatePathsAndCounts(node: ExplorerNode, parentPath: string[]): number {
+      const currentPath = node.id === 'root' ? [] : [...parentPath, node.slug];
+      node.path = currentPath;
+
+      let totalCount = 0;
+      for (const child of node.children) {
+        if (child.type === 'file') {
+          child.path = [...currentPath, child.slug];
+          totalCount += 1;
+        } else {
+          totalCount += populatePathsAndCounts(child, currentPath);
+        }
+      }
+      node.resourceCount = totalCount;
+      return totalCount;
+    }
+
+    populatePathsAndCounts(rootNode, []);
+    return rootNode;
+  }
+
+  // Fallback: Default Stream -> Semester -> Subject layout when no dynamic folders are configured yet
   const branchMap = new Map<string, Resource[]>();
   for (const r of resources) {
     const bId = r.branchId || 'common';
@@ -64,7 +168,6 @@ export function buildVirtualFolderTree(resources: Resource[]): ExplorerNode {
     branchMap.get(bId)!.push(r);
   }
 
-  // Iterate over registered branches or branches that have resources
   const allBranchIds = new Set<string>([
     ...branches.map((b) => b.id),
     ...Array.from(branchMap.keys()),
@@ -88,7 +191,6 @@ export function buildVirtualFolderTree(resources: Resource[]): ExplorerNode {
       children: [],
     };
 
-    // Group branch resources by semester (1-8)
     const semMap = new Map<number, Resource[]>();
     for (const r of branchResources) {
       const semNum = r.semester || 1;
@@ -98,9 +200,7 @@ export function buildVirtualFolderTree(resources: Resource[]): ExplorerNode {
       semMap.get(semNum)!.push(r);
     }
 
-    // Always offer semesters that have resources, or 1st through 8th sem
     const semNumbers = Array.from(semMap.keys()).sort((a, b) => a - b);
-    // If no resources in branch yet, offer semesters 1-8 for discovery structure
     const displaySems = semNumbers.length > 0 ? semNumbers : [1, 2, 3, 4, 5, 6, 7, 8];
 
     for (const semNum of displaySems) {
@@ -121,7 +221,6 @@ export function buildVirtualFolderTree(resources: Resource[]): ExplorerNode {
         children: [],
       };
 
-      // Group semester resources by Subject
       const subjectMap = new Map<string, Resource[]>();
       for (const r of semResources) {
         const subName = (r.subjectName && r.subjectName.trim()) || 'General Modules';
@@ -146,7 +245,6 @@ export function buildVirtualFolderTree(resources: Resource[]): ExplorerNode {
           children: [],
         };
 
-        // Add file nodes under subject
         for (const res of subjResources) {
           const fileSlug = slugify(res.title) || res.id;
           subjNode.children.push({
@@ -209,9 +307,7 @@ export function buildBreadcrumbTrail(
   root: ExplorerNode,
   pathSegments: string[]
 ): BreadcrumbItem[] {
-  const trail: BreadcrumbItem[] = [
-    { label: 'All Resources', path: [] },
-  ];
+  const trail: BreadcrumbItem[] = [{ label: 'All Resources', path: [] }];
 
   if (!pathSegments || pathSegments.length === 0) {
     return trail;
