@@ -112,8 +112,8 @@ export function AdminFileManager() {
     }
     try {
       const [foldersData, resourcesData] = await Promise.all([
-        fetchFolders(true, isManual), // include archived
-        fetchResources(undefined, isManual),
+        fetchFolders(true, true), // include archived, always fresh from DB
+        fetchResources(undefined, true), // always fresh from DB
       ]);
       setFolders(foldersData || []);
       setResources(resourcesData || []);
@@ -149,29 +149,60 @@ export function AdminFileManager() {
     return [...trail, ...path];
   }, [folders, currentFolderId]);
 
-  // Active items in current folder
+  // Active items in current folder, with live search filtering
   const currentSubFolders = useMemo(() => {
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      return folders.filter(
+        (f) =>
+          f.status !== 'archived' &&
+          (f.name.toLowerCase().includes(q) || (f.description && f.description.toLowerCase().includes(q)))
+      );
+    }
     return folders.filter((f) => {
       if (f.status === 'archived') return false;
       return currentFolderId ? f.parentId === currentFolderId : !f.parentId;
     });
-  }, [folders, currentFolderId]);
+  }, [folders, currentFolderId, searchQuery]);
 
   const currentFiles = useMemo(() => {
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      return resources.filter(
+        (r) =>
+          r.title.toLowerCase().includes(q) ||
+          (r.description && r.description.toLowerCase().includes(q)) ||
+          (r.fileName && r.fileName.toLowerCase().includes(q))
+      );
+    }
     return resources.filter((r) => {
       return currentFolderId ? r.folderId === currentFolderId : !r.folderId;
     });
-  }, [resources, currentFolderId]);
+  }, [resources, currentFolderId, searchQuery]);
 
   const archivedFolders = useMemo(() => {
     return folders.filter((f) => f.status === 'archived');
   }, [folders]);
 
-  // Folder helper count
+  // Folder helper count — recursively calculates total documents inside this folder branch
   const getFolderChildCounts = (folderId: string) => {
-    const subFolderCount = folders.filter((f) => f.parentId === folderId && f.status !== 'archived').length;
-    const fileCount = resources.filter((r) => r.folderId === folderId).length;
-    return { subFolderCount, fileCount };
+    const directSubFolders = folders.filter((f) => f.parentId === folderId && f.status !== 'archived');
+    
+    // Collect all descendant folder IDs recursively
+    const collectDescendantIds = (parentId: string): string[] => {
+      const children = folders.filter((f) => f.parentId === parentId && f.status !== 'archived');
+      let ids: string[] = children.map((c) => c.id);
+      for (const child of children) {
+        ids = ids.concat(collectDescendantIds(child.id));
+      }
+      return ids;
+    };
+
+    const allFolderIdsInBranch = [folderId, ...collectDescendantIds(folderId)];
+    const branchFolderSet = new Set(allFolderIdsInBranch);
+    const totalFiles = resources.filter((r) => r.folderId && branchFolderSet.has(r.folderId)).length;
+
+    return { subFolderCount: directSubFolders.length, fileCount: totalFiles };
   };
 
   // CREATE FOLDER
@@ -430,19 +461,25 @@ export function AdminFileManager() {
 
         // Upload file or create resource record
         const fileCleanTitle = item.name.replace(/\.[^/.]+$/, '');
-        // Create persistent data URL for files up to 5MB, or fallback to blob url
         let persistentFileUrl = item.url || '#';
         if (item.file) {
-          if (item.file.size <= 5 * 1024 * 1024) {
-            persistentFileUrl = await new Promise<string>((resolve) => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve(reader.result as string);
-              reader.onerror = () => resolve(URL.createObjectURL(item.file!));
-              reader.readAsDataURL(item.file!);
-            });
-          } else {
-            persistentFileUrl = URL.createObjectURL(item.file);
+          // Send real binary file to /api/upload -> uploads directly to Supabase Storage
+          const uploadFormData = new FormData();
+          uploadFormData.append('file', item.file);
+          uploadFormData.append('folder', 'academic-notes');
+
+          const uploadRes = await fetch('/api/upload', {
+            method: 'POST',
+            body: uploadFormData,
+          });
+
+          if (!uploadRes.ok) {
+            const errData = await uploadRes.json().catch(() => ({}));
+            throw new Error(errData?.error || 'Storage upload failed');
           }
+
+          const uploadJson = await uploadRes.json();
+          persistentFileUrl = uploadJson.url;
         }
 
         const created = await createResource({
@@ -463,7 +500,7 @@ export function AdminFileManager() {
         });
 
         if (created) {
-          setResources((prev) => [created, ...prev]);
+          setResources((prev) => [created, ...prev.filter((r) => r.id !== created.id)]);
         }
 
         setPendingUploads((prev) =>
@@ -479,6 +516,8 @@ export function AdminFileManager() {
     }
 
     setIsProcessingUploads(false);
+    // Refresh all data from database so state is 100% in sync
+    await loadData(true);
     setTimeout(() => {
       setShowUploadModal(false);
       setPendingUploads([]);

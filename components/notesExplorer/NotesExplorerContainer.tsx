@@ -45,7 +45,7 @@ export function NotesExplorerContainer() {
   // Load resources and dynamic folders from Supabase (SWR background revalidation)
   useEffect(() => {
     let mounted = true;
-    Promise.all([fetchResources(), fetchFolders()])
+    Promise.all([fetchResources(undefined, true), fetchFolders(false, true)])
       .then(([resData, foldersData]) => {
         if (mounted) {
           setAllResources(resData || []);

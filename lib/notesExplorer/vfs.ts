@@ -89,8 +89,7 @@ export function buildVirtualFolderTree(
       }
     }
 
-    // 3. Attach resources to their assigned folder
-    const unassignedResources: Resource[] = [];
+    // 3. Attach resources to their assigned folder, or directly to root if unassigned/at root
     for (const r of resources) {
       if (r.folderId && folderNodeMap.has(r.folderId)) {
         const targetFolder = folderNodeMap.get(r.folderId)!;
@@ -107,33 +106,20 @@ export function buildVirtualFolderTree(
           children: [],
         });
       } else {
-        unassignedResources.push(r);
-      }
-    }
-
-    // 4. If legacy resources without folder_id exist, group them under "Legacy Materials"
-    if (unassignedResources.length > 0) {
-      const legacyNode: ExplorerNode = {
-        id: 'legacy-resources',
-        name: 'General Academic Materials',
-        slug: 'general-academic-materials',
-        type: 'folder',
-        category: 'custom',
-        resourceCount: unassignedResources.length,
-        path: ['general-academic-materials'],
-        children: unassignedResources.map((r) => ({
+        // Files uploaded to root or unassigned are directly accessible in root view
+        const fileSlug = slugify(r.title) || r.id;
+        rootNode.children.push({
           id: r.id,
           name: r.title,
-          slug: slugify(r.title) || r.id,
+          slug: fileSlug,
           type: 'file',
           category: 'type',
           resourceCount: 1,
           resource: r,
-          path: ['general-academic-materials', slugify(r.title) || r.id],
+          path: [fileSlug],
           children: [],
-        })),
-      };
-      rootNode.children.push(legacyNode);
+        });
+      }
     }
 
     // 5. Recursively compute paths and accurate resource counts
