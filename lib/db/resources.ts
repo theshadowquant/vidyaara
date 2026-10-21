@@ -4,6 +4,14 @@ import type { Resource } from '@/types';
 import { resources as STATIC_RESOURCES } from '@/data/resources';
 
 const LOCAL_STORAGE_RESOURCES_KEY = 'vidyaaraa_dynamic_resources';
+const RESOURCE_SELECT_FIELDS =
+  'id, folder_id, subject_id, subject_name, branch_id, semester, university_id, type, title, description, url, file_name, file_size_bytes, mime_type, is_demo, uploaded_at';
+
+// In-Memory High-Speed Cache & Promise Deduplicator
+let memoryResourcesCache: Resource[] | null = null;
+let memoryCacheTimestamp = 0;
+const CACHE_TTL_MS = 60_000; // 60 seconds
+let inFlightResourcesPromise: Promise<Resource[]> | null = null;
 
 function getLocalResources(): Resource[] {
   if (typeof window === 'undefined') return [];
@@ -53,83 +61,139 @@ export interface ResourceFilters {
   folderId?: string | null;
 }
 
-export async function fetchResources(filters?: ResourceFilters): Promise<Resource[]> {
-  if (!isSupabaseConfigured()) {
-    let result = [...STATIC_RESOURCES, ...getLocalResources()];
-    if (filters?.folderId !== undefined) {
-      result = result.filter((r) => r.folderId === filters.folderId);
-    }
-    if (filters?.branchId && filters.branchId !== 'all') {
-      result = result.filter((r) => r.branchId === filters.branchId);
-    }
-    if (filters?.semester && filters.semester !== 0) {
-      result = result.filter((r) => r.semester === filters.semester);
-    }
-    if (filters?.type && filters.type !== 'all') {
-      result = result.filter((r) => r.type === filters.type);
-    }
-    if (filters?.search && filters.search.trim()) {
-      const q = filters.search.toLowerCase();
-      result = result.filter(
-        (r) =>
-          r.title.toLowerCase().includes(q) ||
-          r.subjectName.toLowerCase().includes(q) ||
-          r.description.toLowerCase().includes(q)
-      );
-    }
-    return result;
+/**
+ * Synchronous cache lookup for instantaneous page rendering (0ms delay).
+ */
+export function getCachedResources(): Resource[] {
+  if (memoryResourcesCache && memoryResourcesCache.length > 0) {
+    return memoryResourcesCache;
+  }
+  const local = getLocalResources();
+  if (local.length > 0) {
+    return local;
+  }
+  return STATIC_RESOURCES;
+}
+
+export function invalidateResourcesCache() {
+  memoryResourcesCache = null;
+  memoryCacheTimestamp = 0;
+}
+
+export async function fetchResources(filters?: ResourceFilters, forceRefresh = false): Promise<Resource[]> {
+  const isFiltered = !!(
+    filters?.folderId !== undefined ||
+    (filters?.branchId && filters.branchId !== 'all') ||
+    (filters?.semester && filters.semester !== 0) ||
+    (filters?.type && filters.type !== 'all') ||
+    (filters?.search && filters.search.trim())
+  );
+
+  // Return fresh in-memory cache instantly for unfiltered requests
+  if (!forceRefresh && !isFiltered && memoryResourcesCache && Date.now() - memoryCacheTimestamp < CACHE_TTL_MS) {
+    return memoryResourcesCache;
   }
 
-  const client = browserClient();
-  let query = client.from('resources').select('*').order('uploaded_at', { ascending: false });
+  // Deduplicate concurrent in-flight requests
+  if (!isFiltered && inFlightResourcesPromise) {
+    return inFlightResourcesPromise;
+  }
 
-  if (filters?.folderId !== undefined) {
-    if (filters.folderId === null) {
-      query = query.is('folder_id', null);
-    } else {
-      query = query.eq('folder_id', filters.folderId);
+  const fetchPromise = (async () => {
+    try {
+      if (!isSupabaseConfigured()) {
+        let result = [...STATIC_RESOURCES, ...getLocalResources()];
+        if (filters?.folderId !== undefined) {
+          result = result.filter((r) => (filters.folderId === null ? !r.folderId : r.folderId === filters.folderId));
+        }
+        if (filters?.branchId && filters.branchId !== 'all') {
+          result = result.filter((r) => r.branchId === filters.branchId);
+        }
+        if (filters?.semester && filters.semester !== 0) {
+          result = result.filter((r) => r.semester === filters.semester);
+        }
+        if (filters?.type && filters.type !== 'all') {
+          result = result.filter((r) => r.type === filters.type);
+        }
+        if (filters?.search && filters.search.trim()) {
+          const q = filters.search.toLowerCase();
+          result = result.filter(
+            (r) =>
+              r.title.toLowerCase().includes(q) ||
+              r.subjectName.toLowerCase().includes(q) ||
+              r.description.toLowerCase().includes(q)
+          );
+        }
+        return result;
+      }
+
+      const client = browserClient();
+      let query = client.from('resources').select(RESOURCE_SELECT_FIELDS).order('uploaded_at', { ascending: false });
+
+      if (filters?.folderId !== undefined) {
+        if (filters.folderId === null) {
+          query = query.is('folder_id', null);
+        } else {
+          query = query.eq('folder_id', filters.folderId);
+        }
+      }
+      if (filters?.branchId && filters.branchId !== 'all') {
+        query = query.eq('branch_id', filters.branchId);
+      }
+      if (filters?.semester && filters.semester !== 0) {
+        query = query.eq('semester', filters.semester);
+      }
+      if (filters?.type && filters.type !== 'all') {
+        query = query.eq('type', filters.type as any);
+      }
+      if (filters?.search && filters.search.trim()) {
+        query = query.or(
+          `title.ilike.%${filters.search}%,subject_name.ilike.%${filters.search}%,description.ilike.%${filters.search}%`
+        );
+      }
+
+      const { data, error } = await query;
+      if (error) {
+        console.error('Error fetching resources from Supabase:', error);
+        return [...STATIC_RESOURCES, ...getLocalResources()];
+      }
+
+      const dbResources = (data as any[]).map(mapDbResourceToResource);
+      const localResources = getLocalResources();
+
+      // Merge any local resources not yet present in DB so nothing disappears on reload
+      const dbIds = new Set(dbResources.map((r) => r.id));
+      const localOnly = localResources.filter((r) => !dbIds.has(r.id));
+      const combined = [...dbResources, ...localOnly];
+
+      // Update in-memory cache if unfiltered
+      if (!isFiltered) {
+        memoryResourcesCache = combined;
+        memoryCacheTimestamp = Date.now();
+      }
+
+      let result = combined;
+      if (filters?.folderId !== undefined) {
+        if (filters.folderId === null) {
+          result = result.filter((r) => !r.folderId);
+        } else {
+          result = result.filter((r) => r.folderId === filters.folderId);
+        }
+      }
+
+      return result;
+    } finally {
+      if (!isFiltered) {
+        inFlightResourcesPromise = null;
+      }
     }
-  }
-  if (filters?.branchId && filters.branchId !== 'all') {
-    query = query.eq('branch_id', filters.branchId);
-  }
-  if (filters?.semester && filters.semester !== 0) {
-    query = query.eq('semester', filters.semester);
-  }
-  if (filters?.type && filters.type !== 'all') {
-    query = query.eq('type', filters.type as any);
-  }
-  if (filters?.search && filters.search.trim()) {
-    query = query.or(
-      `title.ilike.%${filters.search}%,subject_name.ilike.%${filters.search}%,description.ilike.%${filters.search}%`
-    );
+  })();
+
+  if (!isFiltered) {
+    inFlightResourcesPromise = fetchPromise;
   }
 
-  const { data, error } = await query;
-  if (error) {
-    console.error('Error fetching resources from Supabase:', error);
-    // fallback to local/static
-    return [...STATIC_RESOURCES, ...getLocalResources()];
-  }
-
-  const dbResources = (data as any[]).map(mapDbResourceToResource);
-  const localResources = getLocalResources();
-
-  // Merge any local resources not yet present in DB so nothing disappears on reload
-  const dbIds = new Set(dbResources.map((r) => r.id));
-  const localOnly = localResources.filter((r) => !dbIds.has(r.id));
-  const combined = [...dbResources, ...localOnly];
-
-  let result = combined;
-  if (filters?.folderId !== undefined) {
-    if (filters.folderId === null) {
-      result = result.filter((r) => !r.folderId);
-    } else {
-      result = result.filter((r) => r.folderId === filters.folderId);
-    }
-  }
-
-  return result;
+  return fetchPromise;
 }
 
 export async function createResource(resource: Omit<Resource, 'id' | 'uploadedAt'>): Promise<Resource | null> {
@@ -145,6 +209,7 @@ export async function createResource(resource: Omit<Resource, 'id' | 'uploadedAt
     };
     const current = getLocalResources();
     saveLocalResources([newRes, ...current]);
+    memoryResourcesCache = [newRes, ...(memoryResourcesCache || current)];
     return newRes;
   }
 
@@ -170,31 +235,36 @@ export async function createResource(resource: Omit<Resource, 'id' | 'uploadedAt
   const { data, error } = await client
     .from('resources')
     .insert(insertPayload)
-    .select()
+    .select(RESOURCE_SELECT_FIELDS)
     .single();
 
   if (error) {
     console.error('Error creating resource in Supabase:', error);
-    // Fallback save to local storage
     const fallbackRes: Resource = {
       ...resource,
       id: newId,
       uploadedAt,
     };
     saveLocalResources([fallbackRes, ...getLocalResources()]);
+    memoryResourcesCache = [fallbackRes, ...(memoryResourcesCache || [])];
     return fallbackRes;
   }
 
   const created = mapDbResourceToResource(data);
   saveLocalResources([created, ...getLocalResources().filter((r) => r.id !== created.id)]);
+  memoryResourcesCache = [created, ...(memoryResourcesCache || []).filter((r) => r.id !== created.id)];
   return created;
 }
 
 export async function updateResource(id: string, updates: Partial<Resource>): Promise<boolean> {
+  const list = getLocalResources();
+  const updated = list.map((r) => (r.id === id ? { ...r, ...updates } : r));
+  saveLocalResources(updated);
+  if (memoryResourcesCache) {
+    memoryResourcesCache = memoryResourcesCache.map((r) => (r.id === id ? { ...r, ...updates } : r));
+  }
+
   if (!isSupabaseConfigured()) {
-    const list = getLocalResources();
-    const updated = list.map((r) => (r.id === id ? { ...r, ...updates } : r));
-    saveLocalResources(updated);
     return true;
   }
 
@@ -220,9 +290,12 @@ export async function moveResource(id: string, targetFolderId: string | null): P
 }
 
 export async function deleteResource(id: string): Promise<boolean> {
+  saveLocalResources(getLocalResources().filter((r) => r.id !== id));
+  if (memoryResourcesCache) {
+    memoryResourcesCache = memoryResourcesCache.filter((r) => r.id !== id);
+  }
+
   if (!isSupabaseConfigured()) {
-    const list = getLocalResources();
-    saveLocalResources(list.filter((r) => r.id !== id));
     return true;
   }
 
@@ -231,8 +304,6 @@ export async function deleteResource(id: string): Promise<boolean> {
 
   if (error) {
     console.error('Error deleting resource from Supabase:', error);
-    // Also remove from local fallback if present
-    saveLocalResources(getLocalResources().filter((r) => r.id !== id));
     return false;
   }
 

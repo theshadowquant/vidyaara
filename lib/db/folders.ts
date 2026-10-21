@@ -3,6 +3,13 @@ import type { Folder } from '@/types';
 import { slugify } from '@/lib/notesExplorer/vfs';
 
 const LOCAL_STORAGE_FOLDERS_KEY = 'vidyaaraa_dynamic_folders';
+const FOLDER_SELECT_FIELDS = 'id, name, slug, description, parent_id, sort_order, icon, status, created_at, updated_at';
+
+// In-Memory High-Speed Cache & Promise Deduplicator
+let memoryFoldersCache: Folder[] | null = null;
+let memoryFoldersTimestamp = 0;
+const CACHE_TTL_MS = 60_000; // 60 seconds
+let inFlightFoldersPromise: Promise<Folder[]> | null = null;
 
 function getLocalFolders(): Folder[] {
   if (typeof window === 'undefined') return [];
@@ -39,47 +46,89 @@ export function mapDbFolderToFolder(row: any): Folder {
 }
 
 /**
+ * Synchronous cache lookup for instantaneous page rendering (0ms delay).
+ */
+export function getCachedFolders(includeArchived = false): Folder[] {
+  const source = (memoryFoldersCache && memoryFoldersCache.length > 0)
+    ? memoryFoldersCache
+    : getLocalFolders();
+
+  if (!includeArchived) {
+    return source.filter((f) => f.status !== 'archived');
+  }
+  return source;
+}
+
+export function invalidateFoldersCache() {
+  memoryFoldersCache = null;
+  memoryFoldersTimestamp = 0;
+}
+
+/**
  * Fetch all folders (active by default, or all if includeArchived is true)
  */
-export async function fetchFolders(includeArchived = false): Promise<Folder[]> {
-  if (!isSupabaseConfigured()) {
-    let list = getLocalFolders();
+export async function fetchFolders(includeArchived = false, forceRefresh = false): Promise<Folder[]> {
+  // Return fresh in-memory cache instantly
+  if (!forceRefresh && memoryFoldersCache && Date.now() - memoryFoldersTimestamp < CACHE_TTL_MS) {
     if (!includeArchived) {
-      list = list.filter((f) => f.status !== 'archived');
+      return memoryFoldersCache.filter((f) => f.status !== 'archived');
     }
-    return list.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+    return memoryFoldersCache;
   }
 
-  const client = browserClient();
-  let query = client.from('folders').select('*').order('sort_order', { ascending: true });
-
-  if (!includeArchived) {
-    query = query.eq('status', 'active');
+  // Deduplicate concurrent in-flight requests
+  if (inFlightFoldersPromise) {
+    const res = await inFlightFoldersPromise;
+    return includeArchived ? res : res.filter((f) => f.status !== 'archived');
   }
 
-  const { data, error } = await query;
-  if (error) {
-    console.error('Error fetching folders from Supabase, falling back to local:', error);
-    let list = getLocalFolders();
-    if (!includeArchived) {
-      list = list.filter((f) => f.status !== 'archived');
+  const fetchPromise = (async () => {
+    try {
+      if (!isSupabaseConfigured()) {
+        let list = getLocalFolders();
+        memoryFoldersCache = list;
+        memoryFoldersTimestamp = Date.now();
+        if (!includeArchived) {
+          list = list.filter((f) => f.status !== 'archived');
+        }
+        return list.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0));
+      }
+
+      const client = browserClient();
+      let query = client.from('folders').select(FOLDER_SELECT_FIELDS).order('sort_order', { ascending: true });
+
+      const { data, error } = await query;
+      if (error) {
+        console.error('Error fetching folders from Supabase, falling back to local:', error);
+        let list = getLocalFolders();
+        if (!includeArchived) {
+          list = list.filter((f) => f.status !== 'archived');
+        }
+        return list;
+      }
+
+      const dbFolders = (data as any[]).map(mapDbFolderToFolder);
+      const local = getLocalFolders();
+      const dbIds = new Set(dbFolders.map((f) => f.id));
+      const localOnly = local.filter((f) => !dbIds.has(f.id));
+      const allFolders = [...dbFolders, ...localOnly];
+
+      // Keep local and memory backup synchronized
+      memoryFoldersCache = allFolders;
+      memoryFoldersTimestamp = Date.now();
+      saveLocalFolders(allFolders);
+
+      if (!includeArchived) {
+        return allFolders.filter((f) => f.status !== 'archived');
+      }
+      return allFolders;
+    } finally {
+      inFlightFoldersPromise = null;
     }
-    return list;
-  }
+  })();
 
-  const dbFolders = (data as any[]).map(mapDbFolderToFolder);
-  const local = getLocalFolders();
-  const dbIds = new Set(dbFolders.map((f) => f.id));
-  const localOnly = local.filter((f) => !dbIds.has(f.id));
-  const allFolders = [...dbFolders, ...localOnly];
-
-  // Keep local backup synchronized
-  saveLocalFolders(allFolders);
-
-  if (!includeArchived) {
-    return allFolders.filter((f) => f.status !== 'archived');
-  }
-  return allFolders;
+  inFlightFoldersPromise = fetchPromise;
+  return fetchPromise;
 }
 
 /**
@@ -109,9 +158,12 @@ export async function createFolder(params: {
     updatedAt: now,
   };
 
+  // Immediate cache update
+  const list = getLocalFolders();
+  saveLocalFolders([...list, newFolder]);
+  memoryFoldersCache = [...(memoryFoldersCache || list), newFolder];
+
   if (!isSupabaseConfigured()) {
-    const list = getLocalFolders();
-    saveLocalFolders([...list, newFolder]);
     return newFolder;
   }
 
@@ -130,19 +182,17 @@ export async function createFolder(params: {
   const { data, error } = await client
     .from('folders')
     .insert(insertPayload)
-    .select()
+    .select(FOLDER_SELECT_FIELDS)
     .single();
 
   if (error) {
     console.error('Error creating folder in Supabase, saving to local fallback:', error);
-    const list = getLocalFolders();
-    saveLocalFolders([...list, newFolder]);
     return newFolder;
   }
 
   const created = mapDbFolderToFolder(data);
-  const list = getLocalFolders();
-  saveLocalFolders([...list, created]);
+  saveLocalFolders([...list.filter((f) => f.id !== created.id), created]);
+  memoryFoldersCache = [...(memoryFoldersCache || []).filter((f) => f.id !== created.id), created];
   return created;
 }
 
@@ -172,8 +222,12 @@ export async function updateFolder(
     updatedFolder.slug = slugify(updates.name);
   }
 
-  // Update local
-  saveLocalFolders(list.map((f) => (f.id === id ? updatedFolder : f)));
+  // Update local and memory
+  const updatedList = list.map((f) => (f.id === id ? updatedFolder : f));
+  saveLocalFolders(updatedList);
+  if (memoryFoldersCache) {
+    memoryFoldersCache = memoryFoldersCache.map((f) => (f.id === id ? updatedFolder : f));
+  }
 
   if (!isSupabaseConfigured()) {
     return updatedFolder;
@@ -194,7 +248,7 @@ export async function updateFolder(
     .from('folders')
     .update(payload)
     .eq('id', id)
-    .select()
+    .select(FOLDER_SELECT_FIELDS)
     .single();
 
   if (error) {
@@ -250,11 +304,13 @@ export async function moveFolder(
   const now = new Date().toISOString();
 
   // Local update
-  saveLocalFolders(
-    allFolders.map((f) =>
-      f.id === id ? { ...f, parentId: newParentId, updatedAt: now } : f
-    )
+  const updated = allFolders.map((f) =>
+    f.id === id ? { ...f, parentId: newParentId, updatedAt: now } : f
   );
+  saveLocalFolders(updated);
+  if (memoryFoldersCache) {
+    memoryFoldersCache = updated;
+  }
 
   if (!isSupabaseConfigured()) {
     return { success: true };
@@ -312,7 +368,11 @@ export async function deleteFolder(
   const idsToDelete = recursive ? [id, ...getDescendants(id)] : [id];
 
   // Local storage update
-  saveLocalFolders(allFolders.filter((f) => !idsToDelete.includes(f.id)));
+  const remaining = allFolders.filter((f) => !idsToDelete.includes(f.id));
+  saveLocalFolders(remaining);
+  if (memoryFoldersCache) {
+    memoryFoldersCache = remaining;
+  }
 
   if (!isSupabaseConfigured()) {
     return { success: true };

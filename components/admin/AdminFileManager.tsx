@@ -30,6 +30,7 @@ import {
 import type { Folder, Resource, ResourceType } from '@/types';
 import {
   fetchFolders,
+  getCachedFolders,
   createFolder,
   updateFolder,
   moveFolder,
@@ -39,6 +40,7 @@ import {
 } from '@/lib/db/folders';
 import {
   fetchResources,
+  getCachedResources,
   createResource,
   deleteResource,
   moveResource,
@@ -60,13 +62,16 @@ interface PendingUploadItem {
 }
 
 export function AdminFileManager() {
-  // State
-  const [folders, setFolders] = useState<Folder[]>([]);
-  const [resources, setResources] = useState<Resource[]>([]);
+  // State — instant 0ms startup from memory/local cache
+  const [folders, setFolders] = useState<Folder[]>(() => getCachedFolders(true));
+  const [resources, setResources] = useState<Resource[]>(() => getCachedResources());
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => {
+    return getCachedFolders(true).length === 0 && getCachedResources().length === 0;
+  });
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeSubTab, setActiveSubTab] = useState<'explorer' | 'all' | 'archived'>('explorer');
 
   // Modals & Drawers
@@ -100,13 +105,15 @@ export function AdminFileManager() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dirInputRef = useRef<HTMLInputElement>(null);
 
-  // Load data
-  const loadData = useCallback(async () => {
-    setIsLoading(true);
+  // Load data (with background revalidation)
+  const loadData = useCallback(async (isManual = false) => {
+    if (isManual) {
+      setIsRefreshing(true);
+    }
     try {
       const [foldersData, resourcesData] = await Promise.all([
-        fetchFolders(true), // include archived
-        fetchResources(),
+        fetchFolders(true, isManual), // include archived
+        fetchResources(undefined, isManual),
       ]);
       setFolders(foldersData || []);
       setResources(resourcesData || []);
@@ -114,6 +121,7 @@ export function AdminFileManager() {
       console.error('Failed to load admin file manager data:', err);
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
   }, []);
 
@@ -520,12 +528,12 @@ export function AdminFileManager() {
         </div>
 
         <button
-          onClick={loadData}
-          disabled={isLoading}
+          onClick={() => loadData(true)}
+          disabled={isRefreshing}
           className="btn btn-ghost btn-sm p-1.5 text-xs text-[var(--text-3)] hover:text-[var(--text-1)] flex items-center gap-1"
           title="Refresh library from database"
         >
-          <RefreshCw size={13} className={isLoading ? 'animate-spin' : ''} />
+          <RefreshCw size={13} className={isRefreshing ? 'animate-spin' : ''} />
           <span className="hidden sm:inline">Sync</span>
         </button>
       </div>

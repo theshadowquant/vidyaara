@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { fetchResources } from '@/lib/db/resources';
-import { fetchFolders } from '@/lib/db/folders';
+import { fetchResources, getCachedResources } from '@/lib/db/resources';
+import { fetchFolders, getCachedFolders } from '@/lib/db/folders';
 import type { Resource, Folder } from '@/types';
 import {
   buildVirtualFolderTree,
@@ -23,9 +23,12 @@ export function NotesExplorerContainer() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [allResources, setAllResources] = useState<Resource[]>([]);
-  const [foldersList, setFoldersList] = useState<Folder[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Instant 0ms render from synchronous memory/local cache
+  const [allResources, setAllResources] = useState<Resource[]>(() => getCachedResources());
+  const [foldersList, setFoldersList] = useState<Folder[]>(() => getCachedFolders());
+  const [loading, setLoading] = useState(() => {
+    return getCachedResources().length === 0 && getCachedFolders().length === 0;
+  });
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchOpen, setSearchOpen] = useState(false);
   const [previewResource, setPreviewResource] = useState<Resource | null>(null);
@@ -39,7 +42,7 @@ export function NotesExplorerContainer() {
       .filter(Boolean);
   }, [currentPathString]);
 
-  // Load resources and dynamic folders from Supabase
+  // Load resources and dynamic folders from Supabase (SWR background revalidation)
   useEffect(() => {
     let mounted = true;
     Promise.all([fetchResources(), fetchFolders()])
