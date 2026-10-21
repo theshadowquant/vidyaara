@@ -10,7 +10,7 @@ import {
   Calendar,
 } from 'lucide-react';
 import type { Resource } from '@/types';
-import { formatGoogleDriveUrl } from '@/lib/utils';
+import { formatGoogleDriveUrl, openDocumentInNewTab, downloadDocument } from '@/lib/utils';
 
 interface FileCardProps {
   resource: Resource;
@@ -138,16 +138,15 @@ export function FileCard({ resource, onPreview }: FileCardProps) {
             <span>Preview</span>
           </button>
 
-          <a
-            href={directUrl}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            type="button"
+            onClick={() => openDocumentInNewTab(resource.url, resource.fileName || resource.title)}
             className="btn btn-ghost btn-sm p-1.5 text-[var(--text-3)] hover:text-[var(--accent)] rounded-lg"
             title="Open original file in new tab"
             aria-label="Open original file in new tab"
           >
             <ExternalLink size={14} />
-          </a>
+          </button>
         </div>
       </div>
     </div>

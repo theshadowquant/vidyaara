@@ -46,7 +46,7 @@ import {
   moveResource,
   updateResource,
 } from '@/lib/db/resources';
-import { formatGoogleDriveUrl } from '@/lib/utils';
+import { formatGoogleDriveUrl, openDocumentInNewTab, downloadDocument } from '@/lib/utils';
 import { DocPreviewModal } from '@/components/notesExplorer/DocPreviewModal';
 
 interface PendingUploadItem {
@@ -836,15 +836,14 @@ export function AdminFileManager() {
 
                             <div className="flex items-center gap-1">
                               {file.url && file.url !== '#' && (
-                                <a
-                                  href={file.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
+                                <button
+                                  type="button"
+                                  onClick={() => openDocumentInNewTab(file.url, file.fileName || file.title)}
                                   className="p-1 rounded text-[var(--text-3)] hover:text-[var(--text-1)]"
-                                  title="Open original link"
+                                  title="Open original file in new tab"
                                 >
                                   <ExternalLink size={13} />
-                                </a>
+                                </button>
                               )}
 
                               <button

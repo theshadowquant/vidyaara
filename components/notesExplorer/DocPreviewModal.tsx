@@ -1,9 +1,14 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { X, ExternalLink, Bookmark, Check, FileText, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, ExternalLink, Bookmark, Check, FileText, Loader2, Download } from 'lucide-react';
 import type { Resource } from '@/types';
-import { formatGoogleDriveUrl } from '@/lib/utils';
+import {
+  formatGoogleDriveUrl,
+  dataUrlToBlob,
+  openDocumentInNewTab,
+  downloadDocument,
+} from '@/lib/utils';
 
 interface DocPreviewModalProps {
   resource: Resource | null;
@@ -21,10 +26,12 @@ export function DocPreviewModal({ resource, onClose }: DocPreviewModalProps) {
 
     try {
       const items = localStorage.getItem('cf_saved_resources');
-      const list = items ? JSON.parse(items) : [];
-      setSaved(list.includes(resource.id));
+      if (items) {
+        const list = JSON.parse(items);
+        setSaved(list.includes(resource.id));
+      }
     } catch {
-      // ignore
+      setSaved(false);
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -37,10 +44,36 @@ export function DocPreviewModal({ resource, onClose }: DocPreviewModalProps) {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [resource, onClose]);
 
+  // Convert base64 data URLs to object blob URLs so browser PDF viewer can render them
+  const isDataUrl = Boolean(resource?.url && resource.url.startsWith('data:'));
+
+  const previewBlobUrl = useMemo(() => {
+    if (!resource?.url) return null;
+    if (resource.url.startsWith('data:')) {
+      try {
+        const blob = dataUrlToBlob(resource.url);
+        return URL.createObjectURL(blob);
+      } catch (err) {
+        console.error('Failed to convert base64 to preview blob:', err);
+        return null;
+      }
+    }
+    return null;
+  }, [resource?.url]);
+
+  useEffect(() => {
+    return () => {
+      if (previewBlobUrl) {
+        URL.revokeObjectURL(previewBlobUrl);
+      }
+    };
+  }, [previewBlobUrl]);
+
   if (!resource) return null;
 
-  const targetUrl =
-    resource.url && resource.url !== '#demo' && !resource.url.startsWith('#')
+  const targetUrl = isDataUrl
+    ? previewBlobUrl || ''
+    : resource.url && resource.url !== '#demo' && !resource.url.startsWith('#')
       ? formatGoogleDriveUrl(resource.url)
       : `https://www.google.com/search?q=${encodeURIComponent(
           `VTU ${resource.subjectName} ${resource.title} PDF notes`
@@ -116,16 +149,27 @@ export function DocPreviewModal({ resource, onClose }: DocPreviewModalProps) {
               <span className="hidden sm:inline text-[11px]">{saved ? 'Saved' : 'Save'}</span>
             </button>
 
-            <a
-              href={targetUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+            {/* Direct Download Button */}
+            <button
+              type="button"
+              onClick={() => downloadDocument(resource.url, resource.fileName || resource.title)}
               className="btn btn-secondary btn-sm text-xs py-1.5 px-2.5 flex items-center gap-1 font-semibold"
-              title="Open document in original tab"
+              title="Download file to computer"
             >
-              <span>Open in Drive</span>
+              <Download size={13} />
+              <span className="hidden sm:inline">Download</span>
+            </button>
+
+            {/* Open in new tab with proper Blob rendering */}
+            <button
+              type="button"
+              onClick={() => openDocumentInNewTab(resource.url, resource.fileName || resource.title)}
+              className="btn btn-secondary btn-sm text-xs py-1.5 px-2.5 flex items-center gap-1 font-semibold"
+              title="Open document in new tab"
+            >
+              <span>{isDataUrl ? 'Open Tab' : 'Open Drive'}</span>
               <ExternalLink size={13} />
-            </a>
+            </button>
 
             <button
               type="button"
@@ -148,13 +192,20 @@ export function DocPreviewModal({ resource, onClose }: DocPreviewModalProps) {
             </div>
           )}
 
-          <iframe
-            src={targetUrl}
-            title={resource.title}
-            className="w-full h-full border-0"
-            allow="autoplay"
-            onLoad={() => setIframeLoading(false)}
-          />
+          {targetUrl ? (
+            <iframe
+              key={targetUrl}
+              src={targetUrl}
+              title={resource.title}
+              className="w-full h-full border-0"
+              allow="autoplay"
+              onLoad={() => setIframeLoading(false)}
+            />
+          ) : (
+            <div className="text-center p-8 text-xs text-[var(--text-3)]">
+              Document preview unavailable. Use the Download button above to view this file.
+            </div>
+          )}
         </div>
       </div>
     </div>

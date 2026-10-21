@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, ExternalLink, Eye, Bookmark, Check } from 'lucide-react';
 import type { Resource } from '@/types';
-import { formatGoogleDriveUrl } from '@/lib/utils';
+import { formatGoogleDriveUrl, openDocumentInNewTab } from '@/lib/utils';
 
 interface FileListItemProps {
   resource: Resource;
@@ -118,16 +118,15 @@ export function FileListItem({ resource, onPreview }: FileListItemProps) {
           <span>Preview</span>
         </button>
 
-        <a
-          href={directUrl}
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          type="button"
+          onClick={() => openDocumentInNewTab(resource.url, resource.fileName || resource.title)}
           className="btn btn-ghost btn-sm p-1.5 text-[var(--text-3)] hover:text-[var(--accent)] rounded-lg"
           title="Open file in new tab"
           aria-label="Open file in new tab"
         >
           <ExternalLink size={14} />
-        </a>
+        </button>
       </div>
     </div>
   );
